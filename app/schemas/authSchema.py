@@ -29,6 +29,12 @@ class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str = Field(..., min_length=6)
 
+class UserUpdateRequest(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+
 class UserResponse(BaseModel):
     id: UUID
     username: str
@@ -39,5 +45,6 @@ class UserResponse(BaseModel):
     address: Optional[str]
     status: str
     type: Optional[str]
+    avatar: Optional[str]
     class Config:
         from_attributes = True

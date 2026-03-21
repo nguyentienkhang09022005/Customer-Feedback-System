@@ -12,3 +12,6 @@ psycopg2-binary
 
 pydantic[email]
 bcrypt
+
+cloudinary
+python-multipart
