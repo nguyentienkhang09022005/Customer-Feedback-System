@@ -1,24 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from app.db.session import SessionLocal
 from app.services.employeeService import EmployeeService
 from app.core.response import APIResponse
 from app.schemas.employeeSchema import EmployeeCreate, EmployeeUpdate, EmployeeOut
+from app.api.dependencies import get_db, get_current_employee
 
 router = APIRouter(prefix="/employees", tags=["Employees Management"])
 
-def get_db():
-    db = SessionLocal()
-    try: yield db
-    finally: db.close()
-
-@router.get("", response_model=APIResponse[List[EmployeeOut]])
+@router.get("", response_model=APIResponse[List[EmployeeOut]], dependencies=[Depends(get_current_employee)])
 def get_employees(db: Session = Depends(get_db)):
     emps = EmployeeService(db).get_all()
     return APIResponse(status=True, code=200, message="Thành công", data=emps)
 
-@router.post("", response_model=APIResponse[EmployeeOut])
+@router.post("", response_model=APIResponse[EmployeeOut], dependencies=[Depends(get_current_employee)])
 def create_employee(data: EmployeeCreate, db: Session = Depends(get_db)):
     try:
         emp = EmployeeService(db).create_employee(data)
@@ -26,7 +21,7 @@ def create_employee(data: EmployeeCreate, db: Session = Depends(get_db)):
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
 
-@router.patch("/{emp_id}", response_model=APIResponse[EmployeeOut])
+@router.patch("/{emp_id}", response_model=APIResponse[EmployeeOut], dependencies=[Depends(get_current_employee)])
 def update_employee(emp_id: str, data: EmployeeUpdate, db: Session = Depends(get_db)):
     try:
         emp = EmployeeService(db).update_employee(emp_id, data)
@@ -34,7 +29,7 @@ def update_employee(emp_id: str, data: EmployeeUpdate, db: Session = Depends(get
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
 
-@router.delete("/{emp_id}", response_model=APIResponse)
+@router.delete("/{emp_id}", response_model=APIResponse, dependencies=[Depends(get_current_employee)])
 def delete_employee(emp_id: str, db: Session = Depends(get_db)):
     try:
         EmployeeService(db).delete_employee(emp_id)
