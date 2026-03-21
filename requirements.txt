@@ -9,3 +9,6 @@ python-dotenv
 pyjwt
 
 psycopg2-binary
+
+pydantic[email]
+bcrypt

@@ -46,7 +46,7 @@ class Employee(Human):
     employee_code = Column(String(20), unique=True)
     job_title = Column(String(50))
     max_ticket_capacity = Column(Integer, default=5)
-    chat_score = Column(Float, default=0.0)
+    csat_score = Column(Float, default=0.0)
     hire_date = Column(Date)
 
     role_name = Column(String(50), ForeignKey("roles.role_name"))

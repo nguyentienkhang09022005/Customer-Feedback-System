@@ -1,16 +1,14 @@
-# This is a sample Python script.
+from fastapi import FastAPI
+from app.api.v1 import roles, customerTypes, employees, customers
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+app = FastAPI(title="Customer Feedback System")
 
+# Đăng ký các router
+app.include_router(roles.router, prefix="/api/v1")
+app.include_router(customerTypes.router, prefix="/api/v1")
+app.include_router(employees.router, prefix="/api/v1")
+app.include_router(customers.router, prefix="/api/v1")
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to Customer Feedback System API"}

@@ -10,6 +10,9 @@ from app.models.system import AuditLog, FAQArticle
 def init_db():
     print("⏳ Đang kết nối đến Neon Database và khởi tạo các bảng...")
     try:
+        # print("🗑️ Đang xóa các bảng cũ (nếu có)...")
+        # Base.metadata.drop_all(bind=engine)
+
         Base.metadata.create_all(bind=engine)
         print("✅ Thành công! Toàn bộ cấu trúc Database đã được tạo xong.")
     except Exception as e:
