@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.api.dependencies import get_db, get_current_user
-from app.schemas.authSchema import LoginRequest, TokenResponse, RefreshTokenRequest, RegisterRequest, ChangePasswordRequest, UserResponse
+from app.schemas.authSchema import LoginRequest, TokenResponse, RefreshTokenRequest, RegisterRequest
 from app.services.authService import AuthService
 from app.models.human import Human
 
@@ -46,22 +46,3 @@ def refresh(request: RefreshTokenRequest, db: Session = Depends(get_db)):
 @router.post("/logout")
 def logout(current_user: Human = Depends(get_current_user)):
     return {"message": "Successfully logged out"}
-
-@router.get("/me", response_model=UserResponse)
-def get_me(current_user: Human = Depends(get_current_user)):
-    return current_user
-
-@router.post("/change-password")
-def change_password(
-    request: ChangePasswordRequest,
-    current_user: Human = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    service = AuthService(db)
-    success = service.change_password(str(current_user.id), request.old_password, request.new_password)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid old password"
-        )
-    return {"message": "Password changed successfully"}

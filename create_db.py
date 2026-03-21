@@ -1,22 +1,40 @@
-from app.db.session import engine
-from app.db.base import Base
+"""
+DEPRECATED: Chỉ dùng để initial setup 1 lần.
+Sau khi có Alembic, dùng: alembic upgrade head
 
-# Import TẤT CẢ các model vào đây để SQLAlchemy xây dựng schema
-from app.models.human import Role, CustomerType, Human, Employee, Customer
-from app.models.ticket import TicketCategory, SLAPolicy, Ticket
-from app.models.interaction import Message, Attachment, Evaluate, Notification
-from app.models.system import AuditLog, FAQArticle
+Để khởi tạo database mới hoàn toàn (xóa và tạo lại):
+1. alembic downgrade base
+2. alembic upgrade head
+
+Hoặc chạy trực tiếp: python create_db.py
+"""
+import subprocess
+import sys
+
 
 def init_db():
-    print("⏳ Đang kết nối đến Neon Database và khởi tạo các bảng...")
+    print("⚠️ DEPRECATED: Khuyến nghị dùng 'alembic upgrade head'")
+    print("⏳ Kiểm tra database connection...")
+    
     try:
-        # print("🗑️ Đang xóa các bảng cũ (nếu có)...")
-        # Base.metadata.drop_all(bind=engine)
-
-        Base.metadata.create_all(bind=engine)
-        print("✅ Thành công! Toàn bộ cấu trúc Database đã được tạo xong.")
+        from app.core.config import settings
+        print(f"📍 Database: {settings.DATABASE_URL.split('@')[1] if '@' in settings.DATABASE_URL else 'local'}")
     except Exception as e:
-        print(f"❌ Có lỗi xảy ra: {e}")
+        print(f"❌ Lỗi kết nối: {e}")
+        return False
+    
+    print("\n🔧 Để tạo migration mới: alembic revision --autogenerate -m 'description'")
+    print("🔧 Để apply migration: alembic upgrade head")
+    print("🔧 Để xem status: alembic current")
+    
+    response = input("\n❓ Bạn có muốn chạy 'alembic upgrade head' không? (y/n): ")
+    if response.lower() == 'y':
+        result = subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"])
+        return result.returncode == 0
+    
+    return True
+
 
 if __name__ == "__main__":
-    init_db()
+    success = init_db()
+    sys.exit(0 if success else 1)

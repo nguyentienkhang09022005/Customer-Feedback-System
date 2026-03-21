@@ -5,7 +5,7 @@ from app.repositories.humanRepository import HumanRepository
 from app.repositories.customerRepository import CustomerRepository
 from app.core.security import verify_password, create_access_token, create_refresh_token, verify_token, get_password_hash
 from app.models.human import Human, Customer
-from app.schemas.authSchema import RegisterRequest
+from app.schemas.authSchema import RegisterRequest, UserUpdateRequest
 from app.core.constants import HumanStatusEnum, MembershipTierEnum
 
 class AuthService:
@@ -77,3 +77,28 @@ class AuthService:
         self.db.commit()
         self.db.refresh(user)
         return True
+
+    def update_profile(self, user_id: str, data: UserUpdateRequest) -> Optional[Human]:
+        user = self.repo.get_by_id(user_id)
+        if not user:
+            return None
+        if data.first_name is not None:
+            user.first_name = data.first_name
+        if data.last_name is not None:
+            user.last_name = data.last_name
+        if data.phone is not None:
+            user.phone = data.phone
+        if data.address is not None:
+            user.address = data.address
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+
+    def update_avatar(self, user_id: str, avatar_url: str) -> Optional[Human]:
+        user = self.repo.get_by_id(user_id)
+        if not user:
+            return None
+        user.avatar = avatar_url
+        self.db.commit()
+        self.db.refresh(user)
+        return user
