@@ -15,7 +15,6 @@ class CustomerService:
     def _generate_code(self) -> str:
         prefix_year = f"KH{datetime.utcnow().strftime('%y')}"
         latest = self.repo.get_latest_code(prefix_year)
-        # Lấy 3 ký tự cuối cùng để tăng dần
         new_num = int(latest[0][-3:]) + 1 if (latest and latest[0]) else 1
         return f"{prefix_year}{new_num:03d}"
 
@@ -24,11 +23,11 @@ class CustomerService:
             raise HTTPException(status_code=400, detail="Thông tin liên hệ hoặc Username đã tồn tại!")
 
         new_cus = Customer(
-            **data.dict(exclude={"password"}),  # Giải nén tất cả trường trừ password
-            password_hash=get_password_hash(data.password),  # Hash password riêng
+            **data.dict(exclude={"password"}),
+            password_hash=get_password_hash(data.password),
             status=HumanStatusEnum.ACTIVE,
             customer_code=self._generate_code(),
-            membership_tier=MembershipTierEnum.STANDARD  # Mặc định rank Standard
+            membership_tier=MembershipTierEnum.STANDARD
         )
         return self.repo.create(new_cus)
 
