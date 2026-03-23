@@ -9,6 +9,7 @@ class EmployeeCreate(BaseHumanCreate):
     job_title: str
     role_name: str
     hire_date: date
+    avatar: Optional[str] = None
 
 class EmployeeOut(HumanOut):
     employee_code: str
@@ -17,6 +18,7 @@ class EmployeeOut(HumanOut):
     max_ticket_capacity: int
     csat_score: float
     role_name: str
+    avatar: Optional[str] = None
 
 class EmployeeUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -25,3 +27,4 @@ class EmployeeUpdate(BaseModel):
     department: Optional[str] = None
     job_title: Optional[str] = None
     status: Optional[HumanStatusEnum] = None
+    avatar: Optional[str] = None

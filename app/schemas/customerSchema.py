@@ -6,12 +6,14 @@ from app.core.constants import HumanStatusEnum, MembershipTierEnum
 class CustomerCreate(BaseHumanCreate):
     timezone: str = Field(..., description="Ví dụ: Asia/Ho_Chi_Minh")
     customer_type: str
+    avatar: Optional[str] = None
 
 class CustomerOut(HumanOut):
     customer_code: str
     membership_tier: str
     timezone: str
     customer_type: str
+    avatar: Optional[str] = None
 
 class CustomerUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -20,3 +22,4 @@ class CustomerUpdate(BaseModel):
     timezone: Optional[str] = None
     membership_tier: Optional[MembershipTierEnum] = None
     status: Optional[HumanStatusEnum] = None
+    avatar: Optional[str] = None
