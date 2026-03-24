@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
 from uuid import UUID
 
@@ -48,3 +48,10 @@ class UserResponse(BaseModel):
     avatar: Optional[str]
     class Config:
         from_attributes = True
+
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp_code: str = Field(..., min_length=6, max_length=6)
+
+class MessageResponse(BaseModel):
+    message: str
