@@ -1,5 +1,8 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import and_, func
 from app.models.human import Employee, Human
+from app.models.ticket import Ticket
+from typing import List, Optional
 
 
 class EmployeeRepository:
@@ -38,3 +41,29 @@ class EmployeeRepository:
     def delete(self, emp: Employee):
         self.db.delete(emp)
         self.db.commit()
+
+    def get_available_employees_by_department(self, department: str) -> List[Employee]:
+        return self.db.query(Employee).filter(
+            Employee.department == department,
+            Employee.status == "Active"
+        ).order_by(Employee.csat_score.desc()).all()
+
+    def get_best_employee_for_assignment(self, department: str) -> Optional[Employee]:
+        employees = self.get_available_employees_by_department(department)
+        if not employees:
+            return None
+        
+        active_statuses = ["New", "In Progress", "Pending", "On Hold"]
+        
+        for emp in employees:
+            current_count = self.db.query(Ticket).filter(
+                and_(
+                    Ticket.id_employee == emp.id_employee,
+                    Ticket.status.in_(active_statuses)
+                )
+            ).count()
+            
+            if current_count < emp.max_ticket_capacity:
+                return emp
+        
+        return None

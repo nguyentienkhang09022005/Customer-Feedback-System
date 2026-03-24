@@ -13,6 +13,15 @@ class TicketCategoryRepository:
     def get_by_name(self, name: str):
         return self.db.query(TicketCategory).filter(TicketCategory.name == name).first()
 
+    def get_by_department(self, department: str):
+        return self.db.query(TicketCategory).filter(
+            TicketCategory.department == department,
+            TicketCategory.is_active == True
+        ).all()
+
+    def get_active_all(self):
+        return self.db.query(TicketCategory).filter(TicketCategory.is_active == True).all()
+
     def create(self, category: TicketCategory):
         self.db.add(category)
         self.db.commit()
