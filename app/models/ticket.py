@@ -11,7 +11,7 @@ class TicketCategory(Base):
     name = Column(String(100), nullable=False)
     description = Column(Text)
     is_active = Column(Boolean, default=True)
-    id_department = Column(UUID(as_uuid=True), ForeignKey("departments.id_department"), nullable=False)
+    id_department = Column(UUID(as_uuid=True), ForeignKey("departments.id_department", ondelete="CASCADE"), nullable=False)
     auto_assign = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -40,9 +40,9 @@ class Ticket(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Khóa ngoại cũng phải đổi thành UUID
-    id_category = Column(UUID(as_uuid=True), ForeignKey("tickets_category.id_category"))
-    id_employee = Column(UUID(as_uuid=True), ForeignKey("employees.id_employee"), nullable=True)
-    id_customer = Column(UUID(as_uuid=True), ForeignKey("customers.id_customer"))
+    id_category = Column(UUID(as_uuid=True), ForeignKey("tickets_category.id_category", ondelete="CASCADE"))
+    id_employee = Column(UUID(as_uuid=True), ForeignKey("employees.id_employee", ondelete="SET NULL"), nullable=True)
+    id_customer = Column(UUID(as_uuid=True), ForeignKey("customers.id_customer", ondelete="CASCADE"))
 
     __mapper_args__ = {
         "version_id_col": version

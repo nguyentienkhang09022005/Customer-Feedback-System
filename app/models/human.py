@@ -41,15 +41,15 @@ class Human(Base):
 
 class Employee(Human):
     __tablename__ = "employees"
-    id_employee = Column(UUID(as_uuid=True), ForeignKey("humans.id"), primary_key=True)
-    id_department = Column(UUID(as_uuid=True), ForeignKey("departments.id_department"), nullable=True)
+    id_employee = Column(UUID(as_uuid=True), ForeignKey("humans.id", ondelete="CASCADE"), primary_key=True)
+    id_department = Column(UUID(as_uuid=True), ForeignKey("departments.id_department", ondelete="SET NULL"), nullable=True)
     employee_code = Column(String(20), unique=True)
     job_title = Column(String(50))
     max_ticket_capacity = Column(Integer, default=5)
     csat_score = Column(Float, default=0.0)
     hire_date = Column(Date)
 
-    role_name = Column(String(50), ForeignKey("roles.role_name"))
+    role_name = Column(String(50), ForeignKey("roles.role_name", ondelete="SET NULL"))
 
     __mapper_args__ = {
         "polymorphic_identity": "employee",
@@ -58,12 +58,12 @@ class Employee(Human):
 
 class Customer(Human):
     __tablename__ = "customers"
-    id_customer = Column(UUID(as_uuid=True), ForeignKey("humans.id"), primary_key=True)
+    id_customer = Column(UUID(as_uuid=True), ForeignKey("humans.id", ondelete="CASCADE"), primary_key=True)
     customer_code = Column(String(20), unique=True)
     membership_tier = Column(String(20))
     timezone = Column(String(50))
 
-    customer_type = Column(String(50), ForeignKey("customer_type.type_name"))
+    customer_type = Column(String(50), ForeignKey("customer_type.type_name", ondelete="SET NULL"))
 
     __mapper_args__ = {
         "polymorphic_identity": "customer",

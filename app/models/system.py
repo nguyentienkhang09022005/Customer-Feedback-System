@@ -17,7 +17,7 @@ class AuditLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     id_reference = Column(UUID(as_uuid=True))
-    id_employee = Column(UUID(as_uuid=True), ForeignKey("employees.id_employee"))
+    id_employee = Column(UUID(as_uuid=True), ForeignKey("employees.id_employee", ondelete="SET NULL"))
 
 
 class FAQArticle(Base):
@@ -30,8 +30,8 @@ class FAQArticle(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    id_category = Column(UUID(as_uuid=True), ForeignKey("tickets_category.id_category"))
-    id_author = Column(UUID(as_uuid=True), ForeignKey("employees.id_employee"))
+    id_category = Column(UUID(as_uuid=True), ForeignKey("tickets_category.id_category", ondelete="SET NULL"))
+    id_author = Column(UUID(as_uuid=True), ForeignKey("employees.id_employee", ondelete="SET NULL"))
 
     category = relationship("TicketCategory", lazy="joined")
     author = relationship("Employee", lazy="joined")
