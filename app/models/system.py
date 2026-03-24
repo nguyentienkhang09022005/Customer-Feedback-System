@@ -1,6 +1,9 @@
 import uuid
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, Integer, UUID
 from datetime import datetime
+
+from sqlalchemy.orm import relationship
+
 from app.db.base import Base
 
 
@@ -29,3 +32,6 @@ class FAQArticle(Base):
 
     id_category = Column(UUID(as_uuid=True), ForeignKey("tickets_category.id_category"))
     id_author = Column(UUID(as_uuid=True), ForeignKey("employees.id_employee"))
+
+    category = relationship("TicketCategory", lazy="joined")
+    author = relationship("Employee", lazy="joined")
