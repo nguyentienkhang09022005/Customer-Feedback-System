@@ -12,8 +12,8 @@ class Message(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    id_ticket = Column(UUID(as_uuid=True), ForeignKey("tickets.id_ticket"))
-    id_sender = Column(UUID(as_uuid=True), ForeignKey("humans.id"))
+    id_ticket = Column(UUID(as_uuid=True), ForeignKey("tickets.id_ticket", ondelete="CASCADE"))
+    id_sender = Column(UUID(as_uuid=True), ForeignKey("humans.id", ondelete="SET NULL"))
 
 
 class Attachment(Base):
@@ -26,7 +26,7 @@ class Attachment(Base):
 
     # id_reference dùng để lưu ID của bảng khác nên cũng phải là UUID
     id_reference = Column(UUID(as_uuid=True))
-    id_uploader = Column(UUID(as_uuid=True), ForeignKey("humans.id"))
+    id_uploader = Column(UUID(as_uuid=True), ForeignKey("humans.id", ondelete="SET NULL"))
 
 
 class Evaluate(Base):
@@ -38,8 +38,8 @@ class Evaluate(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    id_ticket = Column(UUID(as_uuid=True), ForeignKey("tickets.id_ticket"))
-    id_customer = Column(UUID(as_uuid=True), ForeignKey("customers.id_customer"))
+    id_ticket = Column(UUID(as_uuid=True), ForeignKey("tickets.id_ticket", ondelete="CASCADE"))
+    id_customer = Column(UUID(as_uuid=True), ForeignKey("customers.id_customer", ondelete="CASCADE"))
 
 
 class Notification(Base):
@@ -52,4 +52,4 @@ class Notification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     id_reference = Column(UUID(as_uuid=True))
-    id_receiver = Column(UUID(as_uuid=True), ForeignKey("humans.id"))
+    id_receiver = Column(UUID(as_uuid=True), ForeignKey("humans.id", ondelete="SET NULL"))

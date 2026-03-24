@@ -14,6 +14,7 @@ from app.models.human import Role, CustomerType, Human, Employee, Customer
 from app.models.ticket import TicketCategory, SLAPolicy, Ticket
 from app.models.interaction import Message, Attachment, Evaluate, Notification
 from app.models.system import AuditLog, FAQArticle
+from app.models.department import Department
 from app.db.base import Base
 
 config = context.config
