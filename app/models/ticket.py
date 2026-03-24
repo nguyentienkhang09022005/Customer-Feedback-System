@@ -11,7 +11,7 @@ class TicketCategory(Base):
     name = Column(String(100), nullable=False)
     description = Column(Text)
     is_active = Column(Boolean, default=True)
-    department = Column(String(50), nullable=False)
+    id_department = Column(UUID(as_uuid=True), ForeignKey("departments.id_department"), nullable=False)
     auto_assign = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

@@ -3,6 +3,7 @@ from app.repositories.employeeRepository import EmployeeRepository
 from app.repositories.ticketRepository import TicketRepository
 from app.models.human import Employee
 from typing import Optional
+import uuid
 
 
 class LoadBalancer:
@@ -11,8 +12,8 @@ class LoadBalancer:
         self.employee_repo = EmployeeRepository(db)
         self.ticket_repo = TicketRepository(db)
 
-    def get_best_employee_for_department(self, department: str) -> Optional[Employee]:
-        employees = self.employee_repo.get_available_employees_by_department(department)
+    def get_best_employee_for_department(self, dept_id: uuid.UUID) -> Optional[Employee]:
+        employees = self.employee_repo.get_available_employees_by_department(dept_id)
         
         if not employees:
             return None

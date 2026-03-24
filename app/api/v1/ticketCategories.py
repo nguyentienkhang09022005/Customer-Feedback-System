@@ -5,11 +5,11 @@ from typing import List
 from app.services.ticketCategoryService import TicketCategoryService
 from app.schemas.ticketCategorySchema import TicketCategoryCreate, TicketCategoryUpdate, TicketCategoryOut
 from app.core.response import APIResponse
-from app.api.dependencies import get_db, get_current_employee
+from app.api.dependencies import get_db, get_current_employee, get_current_user
 
 router = APIRouter(prefix="/ticket-categories", tags=["Ticket Categories Management"])
 
-@router.get("", response_model=APIResponse[List[TicketCategoryOut]], dependencies=[Depends(get_current_employee)])
+@router.get("", response_model=APIResponse[List[TicketCategoryOut]], dependencies=[Depends(get_current_user)])
 def get_categories(db: Session = Depends(get_db)):
     categories = TicketCategoryService(db).get_all()
     return APIResponse(status=True, code=200, message="Thành công", data=categories)

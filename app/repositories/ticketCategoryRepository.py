@@ -1,5 +1,9 @@
 from sqlalchemy.orm import Session
 from app.models.ticket import TicketCategory
+from typing import List
+import uuid
+
+
 class TicketCategoryRepository:
     def __init__(self, db: Session):
         self.db = db
@@ -7,15 +11,15 @@ class TicketCategoryRepository:
     def get_all(self):
         return self.db.query(TicketCategory).all()
 
-    def get_by_id(self, cat_id: str):
+    def get_by_id(self, cat_id: uuid.UUID):
         return self.db.query(TicketCategory).filter(TicketCategory.id_category == cat_id).first()
 
     def get_by_name(self, name: str):
         return self.db.query(TicketCategory).filter(TicketCategory.name == name).first()
 
-    def get_by_department(self, department: str):
+    def get_by_department(self, dept_id: uuid.UUID) -> List[TicketCategory]:
         return self.db.query(TicketCategory).filter(
-            TicketCategory.department == department,
+            TicketCategory.id_department == dept_id,
             TicketCategory.is_active == True
         ).all()
 

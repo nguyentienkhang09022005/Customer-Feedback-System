@@ -7,14 +7,14 @@ class TicketCategoryCreate(BaseModel):
     name: str
     description: Optional[str] = None
     is_active: Optional[bool] = True
-    department: str
+    id_department: UUID
     auto_assign: Optional[bool] = True
 
 class TicketCategoryUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
-    department: Optional[str] = None
+    id_department: Optional[UUID] = None
     auto_assign: Optional[bool] = None
 
 class TicketCategoryOut(BaseModel):
@@ -22,7 +22,7 @@ class TicketCategoryOut(BaseModel):
     name: str
     description: Optional[str]
     is_active: bool
-    department: str
+    id_department: UUID
     auto_assign: bool
     created_at: datetime
 

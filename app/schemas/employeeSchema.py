@@ -1,11 +1,12 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import date
+from uuid import UUID
 from app.schemas.baseHumanSchema import BaseHumanCreate, HumanOut
 from app.core.constants import HumanStatusEnum
 
 class EmployeeCreate(BaseHumanCreate):
-    department: str
+    id_department: Optional[UUID] = None
     job_title: str
     role_name: str
     hire_date: date
@@ -13,7 +14,7 @@ class EmployeeCreate(BaseHumanCreate):
 
 class EmployeeOut(HumanOut):
     employee_code: str
-    department: str
+    id_department: Optional[UUID] = None
     job_title: str
     max_ticket_capacity: int
     csat_score: float
@@ -24,7 +25,7 @@ class EmployeeUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     phone: Optional[str] = Field(None, pattern=r"^[0-9]{10,15}$")
-    department: Optional[str] = None
+    id_department: Optional[UUID] = None
     job_title: Optional[str] = None
     status: Optional[HumanStatusEnum] = None
     avatar: Optional[str] = None

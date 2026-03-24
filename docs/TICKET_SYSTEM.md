@@ -8,6 +8,29 @@ Hệ thống Ticket cho phép customers tạo tickets với categories, employee
 
 ## Database Schema
 
+### Department Table (NEW)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id_department` | UUID | Primary key |
+| `name` | String(50) | Tên department (unique) - VD: "Finance", "HR", "IT", "Support", "Sales" |
+| `description` | Text | Mô tả department |
+| `is_active` | Boolean | Department có đang hoạt động không |
+| `created_at` | DateTime | Thời gian tạo |
+
+### Employee Table (Modified)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id_employee` | UUID | Primary key (FK → humans.id) |
+| `id_department` | UUID | Foreign key → departments.id_department (nullable cho admin) |
+| `employee_code` | String(20) | Mã nhân viên - VD: "NV26001" |
+| `job_title` | String(50) | Chức danh |
+| `role_name` | String(50) | Foreign key → roles.role_name |
+| `max_ticket_capacity` | Integer | Số ticket tối đa có thể nhận (default: 5) |
+| `csat_score` | Float | Điểm satisfaction (0.0 - 5.0) |
+| `hire_date` | Date | Ngày vào làm |
+
 ### TicketCategory Table (Modified)
 
 | Column | Type | Description |
@@ -16,7 +39,7 @@ Hệ thống Ticket cho phép customers tạo tickets với categories, employee
 | `name` | String(100) | Tên category |
 | `description` | Text | Mô tả |
 | `is_active` | Boolean | Category có đang hoạt động không |
-| `department` | String(50) | Department mà category này thuộc về |
+| `id_department` | UUID | Foreign key → departments.id_department |
 | `auto_assign` | Boolean | Tự động assign ticket cho employee (default: TRUE) |
 | `created_at` | DateTime | Thời gian tạo |
 
@@ -39,33 +62,43 @@ Hệ thống Ticket cho phép customers tạo tickets với categories, employee
 
 ## API Endpoints
 
+### Department Management (NEW)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/departments` | Employee | Lấy danh sách departments |
+| POST | `/api/v1/departments` | Employee | Tạo department mới |
+| GET | `/api/v1/departments/{id}` | Employee | Lấy department theo ID |
+| PATCH | `/api/v1/departments/{id}` | Employee | Cập nhật department |
+| DELETE | `/api/v1/departments/{id}` | Employee | Xóa department |
+
 ### Ticket Management
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `POST` | `/api/v1/tickets` | Customer | Tạo ticket mới |
-| `GET` | `/api/v1/tickets` | Any | Lấy danh sách tất cả tickets |
-| `GET` | `/api/v1/tickets/{id}` | Any | Lấy ticket theo ID |
-| `PATCH` | `/api/v1/tickets/{id}` | Employee | Cập nhật ticket |
-| `DELETE` | `/api/v1/tickets/{id}` | Employee | Xóa ticket |
+| POST | `/api/v1/tickets` | Customer | Tạo ticket mới |
+| GET | `/api/v1/tickets/user` | Any | Lấy danh sách tất cả tickets |
+| GET | `/api/v1/tickets/{id}` | Any | Lấy ticket theo ID |
+| PATCH | `/api/v1/tickets/{id}` | Employee | Cập nhật ticket |
+| DELETE | `/api/v1/tickets/{id}` | Employee | Xóa ticket |
 
 ### Ticket Assignment
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `GET` | `/api/v1/tickets/unassigned` | Employee | Lấy tickets chưa được assign |
-| `GET` | `/api/v1/tickets/department/{dept}` | Employee | Lấy tickets theo department |
-| `GET` | `/api/v1/tickets/my-tickets` | Employee | Lấy tickets của employee hiện tại |
-| `POST` | `/api/v1/tickets/assign` | Employee | Manual assign ticket cho employee |
+| GET | `/api/v1/tickets/unassigned` | Employee | Lấy tickets chưa được assign |
+| GET | `/api/v1/tickets/department/{dept_id}` | Employee | Lấy tickets theo department ID |
+| GET | `/api/v1/tickets/employee-tickets` | Employee | Lấy tickets của employee hiện tại |
+| POST | `/api/v1/tickets/assign` | Employee | Manual assign ticket cho employee |
 
 ### Ticket Category Management
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `GET` | `/api/v1/ticket-categories` | Employee | Lấy danh sách categories |
-| `POST` | `/api/v1/ticket-categories` | Employee | Tạo category mới |
-| `PATCH` | `/api/v1/ticket-categories/{id}` | Employee | Cập nhật category |
-| `DELETE` | `/api/v1/ticket-categories/{id}` | Employee | Xóa category |
+| GET | `/api/v1/ticket-categories` | Employee | Lấy danh sách categories |
+| POST | `/api/v1/ticket-categories` | Employee | Tạo category mới |
+| PATCH | `/api/v1/ticket-categories/{id}` | Employee | Cập nhật category |
+| DELETE | `/api/v1/ticket-categories/{id}` | Employee | Xóa category |
 
 ---
 
@@ -100,7 +133,7 @@ Service kiểm tra:
     └── TRUE → Gọi LoadBalancer để tìm best employee
         │
         ▼
-    LoadBalancer.get_best_employee_for_department(department)
+    LoadBalancer.get_best_employee_for_department(dept_id)
         │
         ▼
     Thuật toán Load Balancing:
@@ -129,10 +162,10 @@ Service kiểm tra:
 ### Load Balancing Algorithm
 
 ```python
-def get_best_employee_for_department(department):
+def get_best_employee_for_department(dept_id: UUID):
     # 1. Get all ACTIVE employees in department, ordered by csat_score DESC
     employees = db.query(Employee).filter(
-        Employee.department == department,
+        Employee.id_department == dept_id,
         Employee.status == "Active"
     ).order_by(Employee.csat_score.desc()).all()
     
@@ -157,9 +190,33 @@ Chỉ tính tickets có status:
 
 ---
 
+## Seed Data
+
+Khi migrate, hệ thống sẽ tạo sẵn 5 departments:
+
+| Name | Description |
+|------|-------------|
+| Finance | Phòng Tài Chính |
+| HR | Phòng Nhân Sự |
+| IT | Phòng Công Nghệ Thông Tin |
+| Support | Phòng Hỗ Trợ Khách Hàng |
+| Sales | Phòng Kinh Doanh |
+
+---
+
 ## Ví dụ sử dụng
 
-### 1. Tạo Ticket (Auto-Assignment Enabled)
+### 1. Tạo Department
+
+```bash
+POST /api/v1/departments
+{
+    "name": "Marketing",
+    "description": "Phòng Marketing"
+}
+```
+
+### 2. Tạo Ticket (Auto-Assignment Enabled)
 
 ```bash
 POST /api/v1/tickets
@@ -187,78 +244,10 @@ POST /api/v1/tickets
 }
 ```
 
-**Response (auto_assign=False hoặc không có employee):**
-```json
-{
-    "status": true,
-    "code": 201,
-    "message": "Tạo ticket thành công",
-    "data": {
-        "id_ticket": "uuid-ticket",
-        "title": "Billing Issue",
-        "status": "New",
-        "id_employee": null,
-        "id_category": "uuid-của-billing-category"
-    }
-}
-```
-
-### 2. Manual Assign Ticket
+### 3. Lấy Tickets theo Department
 
 ```bash
-POST /api/v1/tickets/assign
-{
-    "id_employee": "uuid-employee"
-}
-```
-
-### 3. Lấy Tickets của Employee hiện tại
-
-```bash
-GET /api/v1/tickets/my-tickets
-```
-
-### 4. Lấy Tickets chưa được assign
-
-```bash
-GET /api/v1/tickets/unassigned
-```
-
-### 5. Cập nhật Ticket (đổi category → trigger re-assign)
-
-```bash
-PATCH /api/v1/tickets/{id}
-{
-    "id_category": "uuid-category-mới"
-}
-```
-
----
-
-## Cấu hình Category
-
-### Tạo Category với Auto-Assignment
-
-```bash
-POST /api/v1/ticket-categories
-{
-    "name": "Billing",
-    "description": "Các vấn đề về thanh toán",
-    "department": "Finance",
-    "auto_assign": true
-}
-```
-
-### Tạo Category không có Auto-Assignment
-
-```bash
-POST /api/v1/ticket-categories
-{
-    "name": "VIP Support",
-    "description": "Hỗ trợ khách hàng VIP",
-    "department": "VIP",
-    "auto_assign": false
-}
+GET /api/v1/tickets/department/{uuid-department-id}
 ```
 
 ---
@@ -266,31 +255,37 @@ POST /api/v1/ticket-categories
 ## Các File đã thay đổi/thêm mới
 
 ### Models
-- `app/models/ticket.py` - Thêm `department` và `auto_assign` vào TicketCategory
+- `app/models/department.py` - **NEW** - Department model
+- `app/models/human.py` - Đổi `department` String → `id_department` FK
+- `app/models/ticket.py` - Đổi `department` String → `id_department` FK
 
 ### Schemas
-- `app/schemas/ticketCategorySchema.py` - Thêm department, auto_assign
-- `app/schemas/ticketSchema.py` - **NEW** - TicketCreate, TicketOut, etc.
+- `app/schemas/departmentSchema.py` - **NEW** - DepartmentCreate, DepartmentOut, etc.
+- `app/schemas/employeeSchema.py` - Đổi `department` → `id_department`
+- `app/schemas/ticketCategorySchema.py` - Đổi `department` → `id_department`
 
 ### Repositories
-- `app/repositories/ticketCategoryRepository.py` - Thêm get_by_department()
-- `app/repositories/ticketRepository.py` - **NEW** - CRUD + queries
-- `app/repositories/employeeRepository.py` - Thêm load balancing queries
+- `app/repositories/departmentRepository.py` - **NEW** - CRUD operations
+- `app/repositories/employeeRepository.py` - Cập nhật query theo FK
+- `app/repositories/ticketCategoryRepository.py` - Cập nhật query theo FK
+- `app/repositories/ticketRepository.py` - Cập nhật JOIN theo FK
 
 ### Services
-- `app/services/loadBalancer.py` - **NEW** - Load balancing algorithm
-- `app/services/ticketService.py` - **NEW** - Auto-assignment business logic
+- `app/services/departmentService.py` - **NEW** - Business logic
+- `app/services/loadBalancer.py` - Đổi sang nhận `dept_id` UUID
+- `app/services/ticketService.py` - Đổi sang dùng `id_department`
 
 ### API
-- `app/api/v1/tickets.py` - **NEW** - 9 endpoints
-- `main.py` - Đăng ký tickets router
+- `app/api/v1/departments.py` - **NEW** - Department endpoints
+- `app/api/v1/tickets.py` - Đổi endpoint `/department/{dept_id}` nhận UUID
+- `main.py` - Đăng ký departments router
 
 ### Database
-- `migrations/versions/c8ef65d838e9_...py` - Migration thêm columns
+- `migrations/versions/2026_03_24_0001_...py` - Migration tạo bảng + seed data
 
 ### Tests
-- `tests/test_load_balancer.py` - 4 unit tests
-- `tests/test_ticket_service.py` - 5 unit tests
+- `tests/test_load_balancer.py` - Cập nhật dùng UUID
+- `tests/test_ticket_service.py` - Cập nhật dùng UUID
 
 ---
 
@@ -308,7 +303,8 @@ New → In Progress → Pending → On Hold
 
 ## Notes
 
-1. **Department** là free-form string trên Employee (không cần tạo bảng riêng)
-2. **Auto-assignment** chỉ xảy ra khi `category.auto_assign = True`
-3. **Khi đổi category** → ticket được re-assign theo category mới (nếu auto_assign=True)
-4. **Load balancing** dựa trên `csat_score` (customer satisfaction) và `max_ticket_capacity`
+1. **Admin Employees** → `id_department = NULL` (không thuộc department nào)
+2. **Non-admin Employees** → phải có `id_department` hợp lệ
+3. **Auto-assignment** chỉ xảy ra khi `category.auto_assign = True`
+4. **Khi đổi category** → ticket được re-assign theo category mới (nếu auto_assign=True)
+5. **Load balancing** dựa trên `csat_score` (customer satisfaction) và `max_ticket_capacity`

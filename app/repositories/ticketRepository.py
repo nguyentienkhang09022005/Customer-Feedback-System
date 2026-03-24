@@ -19,17 +19,17 @@ class TicketRepository:
     def get_unassigned(self) -> List[Ticket]:
         return self.db.query(Ticket).filter(Ticket.id_employee == None).all()
 
-    def get_by_department(self, department: str) -> List[Ticket]:
+    def get_by_department(self, dept_id: uuid.UUID) -> List[Ticket]:
         return self.db.query(Ticket).join(
             Employee, Ticket.id_employee == Employee.id_employee
-        ).filter(Employee.department == department).all()
+        ).filter(Employee.id_department == dept_id).all()
 
-    def get_unassigned_by_department(self, department: str) -> List[Ticket]:
+    def get_unassigned_by_department(self, dept_id: uuid.UUID) -> List[Ticket]:
         return self.db.query(Ticket).join(
             TicketCategory, Ticket.id_category == TicketCategory.id_category
         ).filter(
             and_(
-                TicketCategory.department == department,
+                TicketCategory.id_department == dept_id,
                 Ticket.id_employee == None
             )
         ).all()

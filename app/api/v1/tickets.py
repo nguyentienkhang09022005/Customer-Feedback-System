@@ -26,7 +26,7 @@ def create_ticket(
         return APIResponse(status=False, code=e.status_code, message=e.detail)
 
 
-@router.get("", response_model=APIResponse[List[TicketOut]])
+@router.get("/user", response_model=APIResponse[List[TicketOut]])
 def get_all_tickets(
     current_user: Human = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -41,13 +41,13 @@ def get_unassigned_tickets(db: Session = Depends(get_db)):
     return APIResponse(status=True, code=200, message="Thành công", data=tickets)
 
 
-@router.get("/department/{department}", response_model=APIResponse[List[TicketOut]], dependencies=[Depends(get_current_employee)])
-def get_tickets_by_department(department: str, db: Session = Depends(get_db)):
-    tickets = TicketService(db).get_tickets_by_department(department)
+@router.get("/department/{dept_id}", response_model=APIResponse[List[TicketOut]], dependencies=[Depends(get_current_employee)])
+def get_tickets_by_department(dept_id: UUID, db: Session = Depends(get_db)):
+    tickets = TicketService(db).get_tickets_by_department(dept_id)
     return APIResponse(status=True, code=200, message="Thành công", data=tickets)
 
 
-@router.get("/my-tickets", response_model=APIResponse[List[TicketOut]], dependencies=[Depends(get_current_employee)])
+@router.get("/employee-tickets", response_model=APIResponse[List[TicketOut]], dependencies=[Depends(get_current_employee)])
 def get_my_tickets(
     current_user: Human = Depends(get_current_employee),
     db: Session = Depends(get_db)
