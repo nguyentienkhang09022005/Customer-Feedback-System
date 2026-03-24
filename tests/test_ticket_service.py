@@ -12,10 +12,11 @@ class TestTicketService:
         category_id = uuid4()
         customer_id = uuid4()
         employee_id = uuid4()
+        dept_id = uuid4()
         
         mock_category = MagicMock()
         mock_category.id_category = category_id
-        mock_category.department = "Finance"
+        mock_category.id_department = dept_id
         mock_category.is_active = True
         mock_category.auto_assign = True
         
@@ -58,10 +59,11 @@ class TestTicketService:
         
         category_id = uuid4()
         customer_id = uuid4()
+        dept_id = uuid4()
         
         mock_category = MagicMock()
         mock_category.id_category = category_id
-        mock_category.department = "Finance"
+        mock_category.id_department = dept_id
         mock_category.is_active = True
         mock_category.auto_assign = True
         
@@ -100,10 +102,11 @@ class TestTicketService:
         
         category_id = uuid4()
         customer_id = uuid4()
+        dept_id = uuid4()
         
         mock_category = MagicMock()
         mock_category.id_category = category_id
-        mock_category.department = "Finance"
+        mock_category.id_department = dept_id
         mock_category.is_active = True
         mock_category.auto_assign = False
         

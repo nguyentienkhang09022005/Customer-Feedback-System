@@ -42,7 +42,7 @@ class Human(Base):
 class Employee(Human):
     __tablename__ = "employees"
     id_employee = Column(UUID(as_uuid=True), ForeignKey("humans.id"), primary_key=True)
-    department = Column(String(50))
+    id_department = Column(UUID(as_uuid=True), ForeignKey("departments.id_department"), nullable=True)
     employee_code = Column(String(20), unique=True)
     job_title = Column(String(50))
     max_ticket_capacity = Column(Integer, default=5)

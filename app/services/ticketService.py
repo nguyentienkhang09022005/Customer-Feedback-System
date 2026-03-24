@@ -36,8 +36,8 @@ class TicketService:
         
         created_ticket = self.repo.create(ticket)
         
-        if category.auto_assign and category.department:
-            best_employee = self.load_balancer.get_best_employee_for_department(category.department)
+        if category.auto_assign and category.id_department:
+            best_employee = self.load_balancer.get_best_employee_for_department(category.id_department)
             if best_employee:
                 created_ticket = self.repo.assign_to_employee(created_ticket.id_ticket, best_employee.id_employee)
                 created_ticket.status = "In Progress"
@@ -57,8 +57,8 @@ class TicketService:
     def get_unassigned_tickets(self) -> List[Ticket]:
         return self.repo.get_unassigned()
 
-    def get_tickets_by_department(self, department: str) -> List[Ticket]:
-        return self.repo.get_by_department(department)
+    def get_tickets_by_department(self, dept_id: uuid.UUID) -> List[Ticket]:
+        return self.repo.get_by_department(dept_id)
 
     def get_tickets_by_employee(self, employee_id: uuid.UUID) -> List[Ticket]:
         return self.repo.get_by_employee(employee_id)
@@ -76,8 +76,8 @@ class TicketService:
                 raise HTTPException(status_code=404, detail="Không tìm thấy danh mục mới!")
             
             update_data["id_employee"] = None
-            if new_category.auto_assign and new_category.department:
-                best_employee = self.load_balancer.get_best_employee_for_department(new_category.department)
+            if new_category.auto_assign and new_category.id_department:
+                best_employee = self.load_balancer.get_best_employee_for_department(new_category.id_department)
                 if best_employee:
                     update_data["id_employee"] = best_employee.id_employee
                     update_data["status"] = "In Progress"
@@ -100,5 +100,5 @@ class TicketService:
             raise HTTPException(status_code=404, detail="Không tìm thấy ticket!")
         self.repo.delete(ticket)
 
-    def get_unassigned_tickets_by_department(self, department: str) -> List[Ticket]:
-        return self.repo.get_unassigned_by_department(department)
+    def get_unassigned_tickets_by_department(self, dept_id: uuid.UUID) -> List[Ticket]:
+        return self.repo.get_unassigned_by_department(dept_id)
