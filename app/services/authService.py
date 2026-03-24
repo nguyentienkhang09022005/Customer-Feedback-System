@@ -1,12 +1,14 @@
 from typing import Optional, Tuple
 from datetime import datetime
 from sqlalchemy.orm import Session
+
+from app.core.constants import HumanStatusEnum, MembershipTierEnum
 from app.repositories.humanRepository import HumanRepository
 from app.repositories.customerRepository import CustomerRepository
 from app.core.security import verify_password, create_access_token, create_refresh_token, verify_token, get_password_hash
 from app.models.human import Human, Customer
 from app.schemas.authSchema import RegisterRequest, UserUpdateRequest
-from app.core.constants import HumanStatusEnum, MembershipTierEnum
+from app.services.otpService import OTPService
 
 class AuthService:
     def __init__(self, db: Session):
@@ -14,26 +16,24 @@ class AuthService:
         self.repo = HumanRepository(db)
         self.customer_repo = CustomerRepository(db)
 
-    def authenticate_user(self, username: str, password: str) -> Optional[Human]:
-        user = self.repo.get_by_username(username)
-        if not user:
-            return None
-        if not verify_password(password, user.password_hash):
-            return None
-        if user.status != "Active":
-            return None
-        return user
-
     def _generate_customer_code(self) -> str:
         prefix_year = f"KH{datetime.utcnow().strftime('%y')}"
         latest = self.customer_repo.get_latest_code(prefix_year)
         new_num = int(latest[0][-3:]) + 1 if (latest and latest[0]) else 1
         return f"{prefix_year}{new_num:03d}"
 
-    def register_customer(self, data: RegisterRequest) -> Optional[Customer]:
+    def register_customer(self, data: RegisterRequest) -> bool:
         if self.customer_repo.check_human_exists(data.email, data.username, data.phone):
+            return False
+
+        return OTPService.generate_and_store_otp(data.email, data)
+
+    def verify_otp_and_activate(self, email: str, otp_code: str) -> Optional[Customer]:
+        data: RegisterRequest = OTPService.verify_and_get_data(email, otp_code)
+
+        if not data:
             return None
-        
+
         new_customer = Customer(
             username=data.username,
             email=data.email,
@@ -50,10 +50,16 @@ class AuthService:
         )
         return self.customer_repo.create(new_customer)
 
-    def create_tokens(self, user_id: str) -> Tuple[str, str]:
-        access_token = create_access_token(user_id)
-        refresh_token = create_refresh_token(user_id)
-        return access_token, refresh_token
+    def authenticate_user(self, username: str, password: str) -> Optional[Human]:
+        user = self.repo.get_by_username(username)
+        if not user or not verify_password(password, user.password_hash):
+            return None
+        if user.status != HumanStatusEnum.ACTIVE:
+            return None
+        return user
+
+    def create_tokens(self, user: Human) -> Tuple[str, str]:
+        return create_access_token(user), create_refresh_token(user)
 
     def verify_access_token(self, token: str) -> Optional[str]:
         return verify_token(token, "access")
@@ -62,10 +68,17 @@ class AuthService:
         return verify_token(token, "refresh")
 
     def refresh_tokens(self, refresh_token: str) -> Optional[Tuple[str, str]]:
-        user_id = self.verify_refresh_token(refresh_token)
-        if not user_id:
+        payload = self.verify_refresh_token(refresh_token)
+        if not payload:
             return None
-        return self.create_tokens(user_id)
+
+        user_id = payload.get("sub")
+        user = self.repo.get_by_id(user_id)
+
+        if not user:
+            return None
+
+        return self.create_tokens(user)
 
     def change_password(self, user_id: str, old_password: str, new_password: str) -> bool:
         user = self.repo.get_by_id(user_id)
