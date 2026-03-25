@@ -4,16 +4,24 @@ from datetime import datetime
 from app.db.base import Base
 
 
+class MessageType(str):
+    TEXT = "text"
+    IMAGE = "image"
+    FILE = "file"
+
+
 class Message(Base):
     __tablename__ = "messages"
     id_message = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     message = Column(Text, nullable=False)
+    message_type = Column(String(20), default=MessageType.TEXT)
+    is_read = Column(Boolean, default=False)
     is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     id_ticket = Column(UUID(as_uuid=True), ForeignKey("tickets.id_ticket", ondelete="CASCADE"))
-    id_sender = Column(UUID(as_uuid=True), ForeignKey("humans.id", ondelete="SET NULL"))
+    id_sender = Column(UUID(as_uuid=True), ForeignKey("humans.id", ondelete="SET_NULL"))
 
 
 class Attachment(Base):

@@ -9,6 +9,21 @@ from typing import List, Optional
 import uuid
 
 
+async def broadcast_ticket_assigned(ticket_id: str, employee_id: str):
+    try:
+        from app.socketio.manager import broadcast_to_ticket
+        await broadcast_to_ticket(
+            str(ticket_id),
+            "ticket_assigned",
+            {
+                "ticket_id": str(ticket_id),
+                "employee_id": str(employee_id)
+            }
+        )
+    except Exception:
+        pass
+
+
 class TicketService:
     def __init__(self, db: Session):
         self.db = db
@@ -92,7 +107,13 @@ class TicketService:
         if not ticket:
             raise HTTPException(status_code=404, detail="Không tìm thấy ticket!")
         
-        return self.repo.assign_to_employee(ticket_id, data.id_employee)
+        result = self.repo.assign_to_employee(ticket_id, data.id_employee)
+        try:
+            import asyncio
+            asyncio.create_task(broadcast_ticket_assigned(str(ticket_id), str(data.id_employee)))
+        except RuntimeError:
+            pass
+        return result
 
     def delete_ticket(self, ticket_id: uuid.UUID):
         ticket = self.repo.get_by_id(ticket_id)
