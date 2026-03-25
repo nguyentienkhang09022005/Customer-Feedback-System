@@ -12,11 +12,13 @@ from app.models.human import Human
 from typing import List, Tuple, Optional
 import uuid
 
+from app.services.auditLogService import AuditLogService
 
 class ChatService:
     def __init__(self, db: Session):
         self.db = db
         self.message_repo = MessageRepository(db)
+        self.audit_service = AuditLogService(db)
 
     def send_message(
         self,
@@ -102,3 +104,63 @@ class ChatService:
             created_at=message.created_at,
             sender=sender_out
         )
+
+    def delete_message(self, message_id: uuid.UUID, employee_id: uuid.UUID) -> None:
+        message = self.message_repo.get_message_by_id(message_id)
+        if not message:
+            raise HTTPException(status_code=404, detail="Tin nhắn không tồn tại!")
+
+        if message.is_deleted:
+            raise HTTPException(status_code=400, detail="Tin nhắn đã bị xóa!")
+
+        old_data = {
+            "content": message.message,
+            "message_type": message.message_type,
+            "is_deleted": False
+        }
+
+        new_data = {
+            "content": message.message,
+            "is_deleted": True
+        }
+
+        self.audit_service.log_action(
+            log_type="MESSAGE",
+            action="DELETE",
+            old_data=old_data,
+            new_data=new_data,
+            id_reference=message.id_message,
+            id_employee=employee_id
+        )
+
+        self.message_repo.soft_delete_message(message_id)
+
+    def update_message(self, ticket_id: uuid.UUID, message_id: uuid.UUID, employee_id: uuid.UUID,
+                       new_content: str) -> MessageOut:
+        message = self.message_repo.get_message_by_id(message_id)
+        if not message:
+            raise HTTPException(status_code=404, detail="Tin nhắn không tồn tại!")
+
+        if message.id_ticket != ticket_id:
+            raise HTTPException(status_code=400, detail="Tin nhắn không thuộc ticket này!")
+
+        if message.is_deleted:
+            raise HTTPException(status_code=400, detail="Không thể sửa tin nhắn đã bị xóa!")
+
+        old_data = {"content": message.message}
+        new_data = {"content": new_content}
+
+        self.audit_service.log_action(
+            log_type="MESSAGE",
+            action="UPDATE",
+            old_data=old_data,
+            new_data=new_data,
+            id_reference=message.id_message,
+            id_employee=employee_id
+        )
+
+        message.message = new_content
+        self.db.commit()
+        self.db.refresh(message)
+
+        return self._to_message_out(message)

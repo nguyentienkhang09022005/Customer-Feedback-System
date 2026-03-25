@@ -57,3 +57,6 @@ class ConversationOut(BaseModel):
 class UnreadCountOut(BaseModel):
     ticket_id: UUID
     unread_count: int
+
+class MessageUpdate(BaseModel):
+    content: str
