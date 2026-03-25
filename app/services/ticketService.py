@@ -7,6 +7,7 @@ from app.schemas.ticketSchema import TicketCreate, TicketUpdate, TicketAssign
 from app.services.loadBalancer import LoadBalancer
 from typing import List, Optional
 import uuid
+from datetime import datetime, timedelta
 
 
 async def broadcast_ticket_assigned(ticket_id: str, employee_id: str):
@@ -35,10 +36,18 @@ class TicketService:
         category = self.category_repo.get_by_id(str(data.id_category))
         if not category:
             raise HTTPException(status_code=404, detail="Không tìm thấy danh mục!")
-        
+
         if not category.is_active:
             raise HTTPException(status_code=400, detail="Danh mục không hoạt động!")
-        
+
+        expired_date = None
+        active_sla = self.sla_repo.get_active_by_severity(data.severity)
+
+        if active_sla:
+            expired_date = datetime.utcnow() + timedelta(minutes=active_sla.max_resolution_minutes)
+        else:
+            expired_date = None
+
         ticket = Ticket(
             title=data.title,
             description=data.description,
@@ -46,18 +55,19 @@ class TicketService:
             status="New",
             id_category=data.id_category,
             id_customer=customer_id,
-            id_employee=None
+            id_employee=None,
+            expired_date=expired_date
         )
-        
+
         created_ticket = self.repo.create(ticket)
-        
+
         if category.auto_assign and category.id_department:
             best_employee = self.load_balancer.get_best_employee_for_department(category.id_department)
             if best_employee:
                 created_ticket = self.repo.assign_to_employee(created_ticket.id_ticket, best_employee.id_employee)
                 created_ticket.status = "In Progress"
                 self.repo.update(created_ticket)
-        
+
         return created_ticket
 
     def get_all_tickets(self) -> List[Ticket]:
@@ -82,24 +92,29 @@ class TicketService:
         ticket = self.repo.get_by_id(ticket_id)
         if not ticket:
             raise HTTPException(status_code=404, detail="Không tìm thấy ticket!")
-        
+
         update_data = data.model_dump(exclude_unset=True)
-        
+
+        if "severity" in update_data and update_data["severity"] != ticket.severity:
+            active_sla = self.sla_repo.get_active_by_severity(update_data["severity"])
+            if active_sla:
+                update_data["expired_date"] = datetime.utcnow() + timedelta(minutes=active_sla.max_resolution_minutes)
+
         if "id_category" in update_data and update_data["id_category"] != ticket.id_category:
             new_category = self.category_repo.get_by_id(str(update_data["id_category"]))
             if not new_category:
                 raise HTTPException(status_code=404, detail="Không tìm thấy danh mục mới!")
-            
+
             update_data["id_employee"] = None
             if new_category.auto_assign and new_category.id_department:
                 best_employee = self.load_balancer.get_best_employee_for_department(new_category.id_department)
                 if best_employee:
                     update_data["id_employee"] = best_employee.id_employee
                     update_data["status"] = "In Progress"
-        
+
         for key, value in update_data.items():
             setattr(ticket, key, value)
-        
+
         return self.repo.update(ticket)
 
     def assign_ticket(self, ticket_id: uuid.UUID, data: TicketAssign) -> Ticket:

@@ -1,17 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from app.db.session import SessionLocal
+
 from app.services.roleService import RoleService
 from app.core.response import APIResponse
 from app.schemas.roleSchema import RoleCreate, RoleUpdate, RoleOut
+from app.api.dependencies import get_db, get_current_admin
 
-router = APIRouter(prefix="/roles", tags=["Roles Management"])
-
-def get_db():
-    db = SessionLocal()
-    try: yield db
-    finally: db.close()
+router = APIRouter(
+    prefix="/roles",
+    tags=["Roles Management"],
+    dependencies=[Depends(get_current_admin)]
+)
 
 @router.get("", response_model=APIResponse[List[RoleOut]])
 def get_roles(db: Session = Depends(get_db)):

@@ -4,12 +4,15 @@ from typing import List, Optional
 from uuid import UUID
 
 from app.services.auditLogService import AuditLogService
-from app.schemas.auditLogSchema import AuditLogOut, AuditLogListOut  # Import thêm ListOut
+from app.schemas.auditLogSchema import AuditLogOut, AuditLogListOut
 from app.core.response import APIResponse
-from app.api.dependencies import get_db, get_current_employee  # Nên chặn chỉ cho Admin/Nhân viên xem
+from app.api.dependencies import get_db, get_current_admin
 
-router = APIRouter(prefix="/audit-logs", tags=["Audit Logs"])
-
+router = APIRouter(
+    prefix="/audit-logs",
+    tags=["Audit Logs"],
+    dependencies=[Depends(get_current_admin)]
+)
 
 @router.get("", response_model=APIResponse[AuditLogListOut])
 def get_all_audit_logs(

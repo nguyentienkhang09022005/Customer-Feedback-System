@@ -52,19 +52,31 @@ def get_current_user(
 def get_current_employee(
         current_user: Human = Depends(get_current_user)
 ) -> Employee:
-    if not isinstance(current_user, Employee):
+    if not isinstance(current_user, Employee) and getattr(current_user, 'type', '') != 'employee':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Employee access required!"
         )
     return current_user
 
+
 def get_current_customer(
         current_user: Human = Depends(get_current_user)
 ) -> Customer:
-    if not isinstance(current_user, Customer):
+    if not isinstance(current_user, Customer) and getattr(current_user, 'type', '') != 'customer':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Customer access required!"
         )
     return current_user
+
+
+def get_current_admin(
+        current_employee: Employee = Depends(get_current_employee)
+) -> Employee:
+    if current_employee.role_name != "Admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required!"
+        )
+    return current_employee
