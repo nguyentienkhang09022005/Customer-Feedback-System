@@ -20,9 +20,24 @@ def get_current_user(
         credentials: HTTPAuthorizationCredentials = Depends(security),
         db: Session = Depends(get_db)
 ) -> Human:
-    from app.core.security import verify_token
+    from app.core.security import verify_token, decode_token_unsafe
+    from app.services.tokenBlacklistService import TokenBlacklistService
+    
     token = credentials.credentials
 
+    # First decode token to get JTI (without full verification)
+    payload_unsafe = decode_token_unsafe(token)
+    if payload_unsafe:
+        jti = payload_unsafe.get("jti")
+        if jti:
+            # Check if token is blacklisted before full verification
+            if TokenBlacklistService.is_access_token_blacklisted(jti):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token has been revoked!"
+                )
+
+    # Full token verification
     payload = verify_token(token, "access")
 
     if not payload or not isinstance(payload, dict):

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, model_validator
 from typing import Optional
 from uuid import UUID
 
@@ -28,6 +28,13 @@ class RefreshTokenRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str = Field(..., min_length=6)
+    confirm_password: str = Field(..., min_length=6)
+    
+    @model_validator(mode='after')
+    def passwords_match(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError('New password and confirm password do not match')
+        return self
 
 class UserUpdateRequest(BaseModel):
     first_name: Optional[str] = None
@@ -52,6 +59,21 @@ class UserResponse(BaseModel):
 class VerifyOTPRequest(BaseModel):
     email: EmailStr
     otp_code: str = Field(..., min_length=6, max_length=6)
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp_code: str = Field(..., min_length=6, max_length=6)
+    new_password: str = Field(..., min_length=6)
+    confirm_password: str = Field(..., min_length=6)
+    
+    @model_validator(mode='after')
+    def passwords_match(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError('New password and confirm password do not match')
+        return self
 
 class MessageResponse(BaseModel):
     message: str

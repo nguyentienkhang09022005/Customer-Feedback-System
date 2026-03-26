@@ -187,6 +187,65 @@ Best regards,
         
         return self._send_with_retry(msg)
     
+    def send_password_reset_otp_email(self, to_email: str, otp_code: str) -> bool:
+        """
+        Send password reset OTP email
+        
+        Args:
+            to_email: Recipient email
+            otp_code: 6-digit OTP code
+        
+        Returns:
+            bool: True if sent successfully
+        """
+        subject = "🔑 Password Reset Request - OTP Code"
+        
+        body_text = f"""
+Password Reset Request
+=======================
+
+Your password reset code is: {otp_code}
+
+This code will expire in 5 minutes.
+
+If you did not request this password reset, please ignore this email and your account remains secure.
+
+Best regards,
+{self.from_name}
+        """
+        
+        body_html = f"""
+<html>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <h2>🔑 Password Reset Request</h2>
+    <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; text-align: center; border: 1px solid #ffc107;">
+        <h1 style="color: #333; letter-spacing: 5px; margin: 0;">{otp_code}</h1>
+    </div>
+    <p style="color: #666; margin-top: 20px;">
+        This code will expire in <strong>5 minutes</strong>.
+    </p>
+    <p style="color: #666; margin-top: 20px;">
+        If you did not request this password reset, please ignore this email and your account remains secure.
+    </p>
+    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+    <p style="color: #666; font-size: 14px;">
+        Best regards,<br>
+        <strong>{self.from_name}</strong>
+    </p>
+</body>
+</html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"{self.from_name} <{self.user}>"
+        msg['To'] = to_email
+        
+        msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
+        msg.attach(MIMEText(body_html, 'html', 'utf-8'))
+        
+        return self._send_with_retry(msg)
+    
     def send_ticket_notification(
         self,
         to_email: str,

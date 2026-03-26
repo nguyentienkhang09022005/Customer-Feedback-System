@@ -35,6 +35,10 @@ def change_password(
     current_user: Human = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """
+    Change password for authenticated user.
+    Requires old password and confirmation of new password.
+    """
     service = AuthService(db)
     success = service.change_password(str(current_user.id), request.old_password, request.new_password)
     if not success:
