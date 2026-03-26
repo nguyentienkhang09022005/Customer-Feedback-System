@@ -12,7 +12,10 @@ from app.models.human import Human
 from typing import List, Tuple, Optional
 import uuid
 
+from app.schemas.notificationSchema import NotificationCreate
 from app.services.auditLogService import AuditLogService
+from app.services.notificationService import NotificationService
+
 
 class ChatService:
     def __init__(self, db: Session):
@@ -21,21 +24,39 @@ class ChatService:
         self.audit_service = AuditLogService(db)
 
     def send_message(
-        self,
-        ticket_id: uuid.UUID,
-        sender_id: uuid.UUID,
-        content: str,
-        message_type: MessageType = MessageType.TEXT
+            self,
+            ticket_id: uuid.UUID,
+            sender_id: uuid.UUID,
+            content: str,
+            message_type: MessageType = MessageType.TEXT
     ) -> MessageOut:
         self.validate_participant(ticket_id, sender_id)
-        
+
         message = self.message_repo.create_message(
             ticket_id=ticket_id,
             sender_id=sender_id,
             content=content,
             message_type=message_type.value
         )
-        
+
+        ticket = self.message_repo.get_ticket_by_id(ticket_id)
+
+        receiver_id = ticket.id_customer if sender_id == ticket.id_employee else ticket.id_employee
+
+        if receiver_id:
+            noti_service = NotificationService(self.db)
+
+            short_content = content[:50] + "..." if len(content) > 50 else content
+
+            noti_data = NotificationCreate(
+                title=f"Tin nhắn mới từ Ticket #{str(ticket.title)[:8]}",
+                content=short_content,
+                notification_type="MESSAGE",
+                id_reference=ticket_id,
+                id_receiver=receiver_id
+            )
+            noti_service.create_and_send(noti_data)
+
         return self._to_message_out(message)
 
     def get_chat_history(
