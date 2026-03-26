@@ -11,6 +11,12 @@ class MembershipTierEnum(str, Enum):
     GOLD = "Gold"
     PLATINUM = "Platinum"
 
+class SeverityEnum(str, Enum):
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+    CRITICAL = "Critical"
+
 class SystemConstants:
     DEFAULT_MAX_TICKET_CAPACITY = 5
     DEFAULT_CSAT_SCORE = 0.0

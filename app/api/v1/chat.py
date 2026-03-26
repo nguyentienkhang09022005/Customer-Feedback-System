@@ -10,7 +10,7 @@ from app.schemas.chatSchema import (
     ChatHistoryOut,
     ConversationOut,
     UnreadCountOut,
-    MessageType
+    MessageType, MessageUpdate
 )
 from app.core.response import APIResponse
 from app.api.dependencies import get_db, get_current_user, get_current_employee, get_current_customer
@@ -133,5 +133,58 @@ def get_conversations(
             conversations.append(conv)
         
         return APIResponse(status=True, code=200, message="Thành công", data=conversations)
+    except HTTPException as e:
+        return APIResponse(status=False, code=e.status_code, message=e.detail)
+
+
+@router.delete("/tickets/{ticket_id}/messages/{message_id}", response_model=APIResponse)
+def delete_message(
+        ticket_id: UUID,
+        message_id: UUID,
+        current_employee: Employee = Depends(get_current_employee),
+        db: Session = Depends(get_db)
+):
+    try:
+        service = ChatService(db)
+
+        service.validate_participant(ticket_id, current_employee.id)
+
+        service.delete_message(message_id=message_id, employee_id=current_employee.id)
+
+        return APIResponse(
+            status=True,
+            code=200,
+            message="Đã xóa tin nhắn thành công và ghi nhận lịch sử hệ thống!"
+        )
+    except HTTPException as e:
+        return APIResponse(status=False, code=e.status_code, message=e.detail)
+
+
+@router.put("/tickets/{ticket_id}/messages/{message_id}", response_model=APIResponse[MessageOut])
+def update_message(
+        ticket_id: UUID,
+        message_id: UUID,
+        data: MessageUpdate,
+        current_employee: Employee = Depends(get_current_employee),
+        db: Session = Depends(get_db)
+):
+    try:
+        service = ChatService(db)
+
+        service.validate_participant(ticket_id, current_employee.id)
+
+        updated_msg = service.update_message(
+            ticket_id=ticket_id,
+            message_id=message_id,
+            employee_id=current_employee.id,
+            new_content=data.content
+        )
+
+        return APIResponse(
+            status=True,
+            code=200,
+            message="Cập nhật tin nhắn thành công!",
+            data=updated_msg
+        )
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)

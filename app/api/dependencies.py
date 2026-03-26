@@ -7,6 +7,7 @@ from app.repositories.humanRepository import HumanRepository
 
 security = HTTPBearer()
 
+
 def get_db():
     db = SessionLocal()
     try:
@@ -14,43 +15,68 @@ def get_db():
     finally:
         db.close()
 
+
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+        credentials: HTTPAuthorizationCredentials = Depends(security),
+        db: Session = Depends(get_db)
 ) -> Human:
     from app.core.security import verify_token
     token = credentials.credentials
-    user_id = verify_token(token, "access")
-    if not user_id:
+
+    payload = verify_token(token, "access")
+
+    if not payload or not isinstance(payload, dict):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
+            detail="Invalid or expired token!"
         )
+
+    user_id_str = payload.get("sub")
+
+    if not user_id_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token không chứa thông tin định danh!"
+        )
+
     repo = HumanRepository(db)
-    user = repo.get_by_id(user_id)
+    user = repo.get_by_id(user_id_str)
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="User not found!"
         )
     return user
 
 def get_current_employee(
-    current_user: Human = Depends(get_current_user)
+        current_user: Human = Depends(get_current_user)
 ) -> Employee:
-    if not isinstance(current_user, Employee):
+    if not isinstance(current_user, Employee) and getattr(current_user, 'type', '') != 'employee':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Employee access required"
+            detail="Employee access required!"
         )
     return current_user
 
+
 def get_current_customer(
-    current_user: Human = Depends(get_current_user)
+        current_user: Human = Depends(get_current_user)
 ) -> Customer:
-    if not isinstance(current_user, Customer):
+    if not isinstance(current_user, Customer) and getattr(current_user, 'type', '') != 'customer':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Customer access required"
+            detail="Customer access required!"
         )
     return current_user
+
+
+def get_current_admin(
+        current_employee: Employee = Depends(get_current_employee)
+) -> Employee:
+    if current_employee.role_name != "Admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required!"
+        )
+    return current_employee

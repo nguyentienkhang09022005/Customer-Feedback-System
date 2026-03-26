@@ -95,3 +95,14 @@ class MessageRepository:
         offset = (page - 1) * limit
         tickets = query.order_by(Ticket.updated_at.desc()).offset(offset).limit(limit).all()
         return tickets, total
+
+    def get_message_by_id(self, message_id: uuid.UUID) -> Optional[Message]:
+        return self.db.query(Message).filter(Message.id_message == message_id).first()
+
+    def soft_delete_message(self, message_id: uuid.UUID) -> Message:
+        message = self.get_message_by_id(message_id)
+        if message:
+            message.is_deleted = True
+            self.db.commit()
+            self.db.refresh(message)
+        return message
