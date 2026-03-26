@@ -9,10 +9,16 @@ SPAM_COOLDOWN = 300  # Hết hạn sau 5 phút
 class OTPService:
     @staticmethod
     def _send_otp_email(email: str, otp: str):
-        print(f"\n=====================================================")
-        print(f"📧 ĐANG GỬI EMAIL ĐẾN: {email}")
-        print(f"🔑 MÃ OTP XÁC NHẬN CỦA BẠN LÀ: {otp}")
-        print(f"=====================================================\n")
+        try:
+            from app.services.emailService import email_service
+            email_service.send_otp_email(email, otp)
+        except Exception as e:
+            # Fallback to console print if email fails
+            print(f"\n=====================================================")
+            print(f"📧 EMAIL FAILED - PRINTING TO CONSOLE:")
+            print(f"📧 ĐANG GỬI EMAIL ĐẾN: {email}")
+            print(f"🔑 MÃ OTP XÁC NHẬN CỦA BẠN LÀ: {otp}")
+            print(f"=====================================================\n")
 
     @staticmethod
     def generate_and_store_otp(email: str, payload_data: Any) -> bool:
