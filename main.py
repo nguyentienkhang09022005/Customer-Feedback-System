@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import socketio
 from app.api.v1 import roles, customerTypes, employees, customers, auth, user, ticketCategories, tickets, departments, \
-    faq, chat, audit, sla
+    faq, chat, audit, sla, evaluate
 from app.socketio.manager import sio
 
 app = FastAPI(title="Customer Feedback System")
@@ -28,6 +28,7 @@ app.include_router(faq.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
 app.include_router(audit.router, prefix="/api/v1")
 app.include_router(sla.router, prefix="/api/v1")
+app.include_router(evaluate.router, prefix="/api/v1")
 
 socket_app = socketio.ASGIApp(sio, app)
 app.mount("/socket.io", socket_app)

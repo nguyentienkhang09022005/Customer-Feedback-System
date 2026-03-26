@@ -1,6 +1,9 @@
 import uuid
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, UUID, Integer
 from datetime import datetime
+
+from sqlalchemy.orm import relationship
+
 from app.db.base import Base
 
 
@@ -40,7 +43,6 @@ class Attachment(Base):
 class Evaluate(Base):
     __tablename__ = "evaluates"
     id_evaluate = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    # Cột star giữ nguyên Integer vì nó là số sao đánh giá (1-5)
     star = Column(Integer, nullable=False)
     comment = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -49,6 +51,7 @@ class Evaluate(Base):
     id_ticket = Column(UUID(as_uuid=True), ForeignKey("tickets.id_ticket", ondelete="CASCADE"))
     id_customer = Column(UUID(as_uuid=True), ForeignKey("customers.id_customer", ondelete="CASCADE"))
 
+    customer = relationship("Customer", backref="evaluates")
 
 class Notification(Base):
     __tablename__ = "notification"
