@@ -18,8 +18,13 @@ async def on_connect(sid, environ):
     if auth_token.startswith('Bearer '):
         token = auth_token[7:]
         user_id = verify_token(token, "access")
+
         if not user_id:
             return False
+
+        room_name = f"user_{user_id}"
+        await sio.enter_room(sid, room_name)
+
         return True
     return False
 
@@ -35,7 +40,7 @@ async def on_join_ticket(sid, data):
     user_id = data.get('user_id')
     if not ticket_id or not user_id:
         return
-    
+
     room = f"ticket_{ticket_id}"
     await sio.enter_room(sid, room)
     await sio.to(room).emit('user_joined', {
@@ -51,7 +56,7 @@ async def on_leave_ticket(sid, data):
     user_id = data.get('user_id')
     if not ticket_id:
         return
-    
+
     room = f"ticket_{ticket_id}"
     await sio.leave_room(sid, room)
     await sio.to(room).emit('user_left', {
@@ -67,10 +72,10 @@ async def on_send_message(sid, data):
     user_id = data.get('user_id')
     content = data.get('content')
     message_type = data.get('type', 'text')
-    
+
     if not all([ticket_id, user_id, content]):
         return
-    
+
     room = f"ticket_{ticket_id}"
     await sio.to(room).emit('new_message', {
         'ticket_id': ticket_id,
