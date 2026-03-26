@@ -59,7 +59,9 @@ class AuthService:
         return user
 
     def create_tokens(self, user: Human) -> Tuple[str, str]:
-        return create_access_token(user), create_refresh_token(user)
+        access_token, _ = create_access_token(user)
+        refresh_token, _ = create_refresh_token(user)
+        return access_token, refresh_token
 
     def verify_access_token(self, token: str) -> Optional[str]:
         return verify_token(token, "access")
@@ -115,3 +117,39 @@ class AuthService:
         self.db.commit()
         self.db.refresh(user)
         return user
+
+    def initiate_forgot_password(self, email: str) -> bool:
+        """
+        Initiate password reset process for a user.
+        Returns True if email exists and OTP was sent.
+        Always returns True to prevent email enumeration.
+        """
+        # Check if email exists in the system
+        user = self.repo.get_by_email(email)
+        if not user:
+            # Return True anyway to prevent email enumeration
+            # (attacker can't tell if email exists)
+            return True
+        
+        # Generate and send OTP for password reset
+        OTPService.generate_otp_for_password_reset(email)
+        return True
+
+    def reset_password_with_otp(self, email: str, otp_code: str, new_password: str) -> bool:
+        """
+        Reset password using OTP verification.
+        Returns True if OTP is valid and password was reset.
+        """
+        # Verify the OTP first
+        if not OTPService.verify_password_reset_otp(email, otp_code):
+            return False
+        
+        # Get user by email
+        user = self.repo.get_by_email(email)
+        if not user:
+            return False
+        
+        # Update password
+        user.password_hash = get_password_hash(new_password)
+        self.db.commit()
+        return True

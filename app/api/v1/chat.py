@@ -41,17 +41,26 @@ def get_chat_history(
         return APIResponse(status=False, code=e.status_code, message=e.detail)
 
 
-@router.post("/tickets/{ticket_id}/messages", response_model=APIResponse[MessageOut])
+@router.post("/tickets/{ticket_id}/messages", response_model=APIResponse[MessageOut], include_in_schema=False)
 def send_message(
     ticket_id: UUID,
     data: MessageCreate,
     current_user: Human = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """
+    [HIDDEN] Vui lòng sử dụng Socket.IO 'send_message' event để gửi tin nhắn.
+    API này đã bị ẩn khỏi tài liệu Swagger.
+    """
     try:
         service = ChatService(db)
         message = service.send_message(ticket_id, current_user.id, data.content, data.message_type)
-        return APIResponse(status=True, code=201, message="Gửi tin nhắn thành công", data=message)
+        return APIResponse(
+            status=True,
+            code=201,
+            message="Gửi tin nhắn thành công (đã ẩn - vui lòng dùng Socket.IO)",
+            data=message
+        )
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
 

@@ -2,12 +2,16 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.repositories.ticketRepository import TicketRepository
 from app.repositories.ticketCategoryRepository import TicketCategoryRepository
+from app.repositories.humanRepository import HumanRepository
 from app.models.ticket import Ticket
 from app.schemas.ticketSchema import TicketCreate, TicketUpdate, TicketAssign
 from app.services.loadBalancer import LoadBalancer
 from typing import List, Optional
 import uuid
 from datetime import datetime, timedelta
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def broadcast_ticket_assigned(ticket_id: str, employee_id: str):
@@ -23,6 +27,31 @@ async def broadcast_ticket_assigned(ticket_id: str, employee_id: str):
         )
     except Exception:
         pass
+
+
+def _send_ticket_email_notification(ticket: Ticket, event_type: str, recipient_email: str = None):
+    """Helper to send ticket email notification"""
+    try:
+        from app.services.emailService import email_service
+        
+        # If no recipient email provided, try to determine from ticket
+        if not recipient_email:
+            # This would require additional queries to get emails
+            # For now, skip if no email
+            return
+        
+        email_service.send_ticket_notification(
+            to_email=recipient_email,
+            ticket_id=str(ticket.id_ticket),
+            event_type=event_type,
+            additional_info={
+                "title": ticket.title,
+                "status": ticket.status,
+                "severity": ticket.severity
+            }
+        )
+    except Exception as e:
+        logger.warning(f"Failed to send ticket email notification: {e}")
 
 
 class TicketService:
@@ -60,6 +89,15 @@ class TicketService:
         )
 
         created_ticket = self.repo.create(ticket)
+
+        # Send email notification to customer
+        try:
+            human_repo = HumanRepository(self.db)
+            customer = human_repo.get_by_id(str(customer_id))
+            if customer and customer.email:
+                _send_ticket_email_notification(created_ticket, 'created', customer.email)
+        except Exception as e:
+            logger.warning(f"Failed to send ticket created email: {e}")
 
         if category.auto_assign and category.id_department:
             best_employee = self.load_balancer.get_best_employee_for_department(category.id_department)
@@ -123,6 +161,16 @@ class TicketService:
             raise HTTPException(status_code=404, detail="Không tìm thấy ticket!")
         
         result = self.repo.assign_to_employee(ticket_id, data.id_employee)
+        
+        # Send email notification to assigned employee
+        try:
+            human_repo = HumanRepository(self.db)
+            employee = human_repo.get_by_id(str(data.id_employee))
+            if employee and employee.email:
+                _send_ticket_email_notification(result, 'assigned', employee.email)
+        except Exception as e:
+            logger.warning(f"Failed to send ticket assigned email: {e}")
+        
         try:
             import asyncio
             asyncio.create_task(broadcast_ticket_assigned(str(ticket_id), str(data.id_employee)))
