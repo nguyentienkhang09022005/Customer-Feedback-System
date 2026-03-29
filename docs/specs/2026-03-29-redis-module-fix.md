@@ -36,7 +36,7 @@ Add `redis` to `requirements.txt` only.
 - **Pros**: Simple, one-line change
 - **Cons**: Requires manual Redis server setup
 
-### Option B: Full Stack Fix
+### Option B: Full Stack Fix (CHOSEN)
 1. Add `redis` to `requirements.txt`
 2. Add Redis container to `docker-compose.yml`
 3. Configure `.env` with `REDIS_HOST=redis`
@@ -51,26 +51,60 @@ Set `REDIS_ENABLED=false` in `.env`
 
 ---
 
-## Recommended: Option A (Minimal)
+## Implementation: Option B
 
-Add to `requirements.txt`:
+### Step 1: Add `redis` to `requirements.txt`
 ```
 redis
 ```
 
-Then install: `pip install redis`
+### Step 2: Add Redis service to `docker-compose.yml`
+```yaml
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: customer-feedback-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  redis_data:
+```
+
+### Step 3: Update `docker-compose.yml` app service to depends_on redis
+```yaml
+services:
+  app:
+    depends_on:
+      - redis
+```
+
+### Step 4: Update `.env`
+```
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_ENABLED=true
+```
+
+### Step 5: Rebuild and start
+```bash
+docker-compose down
+docker-compose build
+docker-compose up -d
+```
 
 ---
 
-## Verification
+## Redis Host Configuration
 
-After fix, restart the server:
-```bash
-uvicorn main:app --reload
-```
+| Environment | `REDIS_HOST` value |
+|-------------|-------------------|
+| **Docker (containerized)** | `redis` (service name in docker-compose) |
+| **Local machine** | `localhost` |
 
-The error should be resolved. If Redis server is not running, you'll see:
-```
-⚠️ Redis is disabled
-```
-or connection errors in logs, but the app will start.
+Choose based on where Redis runs:
+- **Docker**: App inside container talks to `redis://redis:6379`
+- **Local**: App inside container talks to `host.docker.internal:6379` or `localhost` (if port exposed)
