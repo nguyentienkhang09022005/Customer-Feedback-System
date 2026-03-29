@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.repositories.ticketRepository import TicketRepository
 from app.repositories.ticketCategoryRepository import TicketCategoryRepository
+from app.repositories.slaRepository import SLAPolicyRepository
 from app.repositories.humanRepository import HumanRepository
 from app.models.ticket import Ticket
 from app.schemas.ticketSchema import TicketCreate, TicketUpdate, TicketAssign
@@ -59,6 +60,7 @@ class TicketService:
         self.db = db
         self.repo = TicketRepository(db)
         self.category_repo = TicketCategoryRepository(db)
+        self.sla_repo = SLAPolicyRepository(db)
         self.load_balancer = LoadBalancer(db)
 
     def create_ticket(self, data: TicketCreate, customer_id: uuid.UUID) -> Ticket:
