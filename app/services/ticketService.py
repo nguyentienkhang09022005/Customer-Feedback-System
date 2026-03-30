@@ -191,3 +191,42 @@ class TicketService:
 
     def get_unassigned_tickets_by_department(self, dept_id: uuid.UUID) -> List[Ticket]:
         return self.repo.get_unassigned_by_department(dept_id)
+
+    def _trigger_csat_survey(self, ticket: Ticket):
+        """Trigger CSAT survey for resolved ticket - placeholder for future implementation"""
+        try:
+            # TODO: Implement CSAT survey triggering logic
+            # This could send an email/SMS with survey link to customer
+            logger.info(f"CSAT survey triggered for ticket {ticket.id_ticket}")
+        except Exception as e:
+            logger.warning(f"Failed to trigger CSAT survey: {e}")
+
+    def resolve_ticket(self, ticket_id: uuid.UUID, resolution_note: str = None) -> Ticket:
+        """Resolve ticket - chuyển sang Resolved status và trigger CSAT survey"""
+        ticket = self.repo.get_by_id(ticket_id)
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Không tìm thấy ticket!")
+        
+        ticket.status = "Resolved"
+        ticket.resolution_note = resolution_note
+        
+        updated_ticket = self.repo.update(ticket)
+        
+        # Trigger CSAT survey
+        self._trigger_csat_survey(ticket)
+        
+        return updated_ticket
+
+    def close_ticket(self, ticket_id: uuid.UUID, reason: str = None) -> Ticket:
+        """Close ticket - chỉ cho phép close từ Resolved"""
+        ticket = self.repo.get_by_id(ticket_id)
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Không tìm thấy ticket!")
+        
+        if ticket.status != "Resolved":
+            raise HTTPException(status_code=400, detail="Chỉ có thể đóng ticket từ trạng thái Resolved!")
+        
+        ticket.status = "Closed"
+        ticket.resolution_note = reason
+        
+        return self.repo.update(ticket)

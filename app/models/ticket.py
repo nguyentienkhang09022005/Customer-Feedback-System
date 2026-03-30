@@ -47,3 +47,9 @@ class Ticket(Base):
     __mapper_args__ = {
         "version_id_col": version
     }
+
+    @property
+    def is_overdue(self) -> bool:
+        if self.expired_date and self.status not in ["Resolved", "Closed"]:
+            return datetime.utcnow() > self.expired_date
+        return False

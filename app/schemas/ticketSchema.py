@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
@@ -29,11 +29,19 @@ class TicketOut(BaseModel):
     description: Optional[str]
     status: str
     severity: Optional[str]
+    expired_date: Optional[datetime] = None
     id_category: UUID
     id_employee: Optional[UUID]
     id_customer: UUID
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def is_overdue(self) -> bool:
+        if self.expired_date and self.status not in ["Resolved", "Closed"]:
+            return datetime.utcnow() > self.expired_date
+        return False
 
     class Config:
         from_attributes = True
@@ -44,3 +52,11 @@ class TicketDetailOut(TicketOut):
 
     class Config:
         from_attributes = True
+
+
+class TicketResolve(BaseModel):
+    resolution_note: Optional[str] = None
+
+
+class TicketClose(BaseModel):
+    reason: Optional[str] = None

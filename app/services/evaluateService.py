@@ -1,8 +1,11 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from fastapi import HTTPException
 from app.repositories.evaluateRepository import EvaluateRepository
 from app.repositories.ticketRepository import TicketRepository
 from app.models.interaction import Evaluate
+from app.models.ticket import Ticket
+from app.models.human import Employee
 from app.schemas.evaluateSchema import EvaluateCreate, EvaluateUpdate
 from typing import List
 import uuid
@@ -46,6 +49,7 @@ class EvaluateService:
                 id_receiver=ticket.id_employee
             )
             noti_service.create_and_send(noti_data)
+            self._update_employee_csat_score(ticket.id_employee)
 
         return created_evaluate
 
@@ -75,3 +79,19 @@ class EvaluateService:
             raise HTTPException(status_code=403, detail="Bạn không có quyền xóa đánh giá này!")
 
         self.repo.delete(evaluate)
+
+    def _update_employee_csat_score(self, employee_id: uuid.UUID):
+        """Tính trung bình cộng tất cả đánh giá của employee và cập nhật csat_score"""
+        # Query lấy trung bình đánh giá của employee này
+        # Join Evaluate với Ticket để filter theo id_employee của ticket
+        result = self.db.query(func.avg(Evaluate.star)).join(
+            Ticket, Evaluate.id_ticket == Ticket.id_ticket
+        ).filter(Ticket.id_employee == employee_id).scalar()
+        
+        avg_score = result or 0.0
+        
+        # Cập nhật csat_score cho employee
+        employee = self.db.query(Employee).filter(Employee.id_employee == employee_id).first()
+        if employee:
+            employee.csat_score = float(avg_score)
+            self.db.commit()

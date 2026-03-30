@@ -4,7 +4,7 @@ from typing import List
 from uuid import UUID
 
 from app.services.ticketService import TicketService
-from app.schemas.ticketSchema import TicketCreate, TicketUpdate, TicketOut, TicketAssign
+from app.schemas.ticketSchema import TicketCreate, TicketUpdate, TicketOut, TicketAssign, TicketResolve, TicketClose
 from app.core.response import APIResponse
 from app.api.dependencies import get_db, get_current_user, get_current_employee, get_current_customer
 from app.models.human import Human, Customer
@@ -98,5 +98,23 @@ def delete_ticket(ticket_id: UUID, db: Session = Depends(get_db)):
     try:
         TicketService(db).delete_ticket(ticket_id)
         return APIResponse(status=True, code=200, message="Xóa ticket thành công")
+    except HTTPException as e:
+        return APIResponse(status=False, code=e.status_code, message=e.detail)
+
+
+@router.post("/{ticket_id}/resolve", response_model=APIResponse[TicketOut], dependencies=[Depends(get_current_employee)])
+def resolve_ticket_endpoint(ticket_id: UUID, data: TicketResolve, db: Session = Depends(get_db)):
+    try:
+        ticket = TicketService(db).resolve_ticket(ticket_id, data.resolution_note)
+        return APIResponse(status=True, code=200, message="Giải quyết ticket thành công", data=ticket)
+    except HTTPException as e:
+        return APIResponse(status=False, code=e.status_code, message=e.detail)
+
+
+@router.post("/{ticket_id}/close", response_model=APIResponse[TicketOut], dependencies=[Depends(get_current_employee)])
+def close_ticket_endpoint(ticket_id: UUID, data: TicketClose, db: Session = Depends(get_db)):
+    try:
+        ticket = TicketService(db).close_ticket(ticket_id, data.reason)
+        return APIResponse(status=True, code=200, message="Đóng ticket thành công", data=ticket)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
