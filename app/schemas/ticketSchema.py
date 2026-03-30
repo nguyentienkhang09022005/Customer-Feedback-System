@@ -37,6 +37,7 @@ class TicketOut(BaseModel):
     id_customer: UUID
     created_at: datetime
     updated_at: datetime
+    category_name: Optional[str] = None
 
     @computed_field
     @property
