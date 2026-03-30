@@ -22,7 +22,7 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 
 @router.get("/tickets/{ticket_id}/messages", response_model=APIResponse[ChatHistoryOut])
 def get_chat_history(
-    ticket_id: UUID,
+    ticket_id: str,
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     current_user: Human = Depends(get_current_user),
@@ -49,7 +49,7 @@ def get_chat_history(
 
 @router.post("/tickets/{ticket_id}/messages", response_model=APIResponse[MessageOut], include_in_schema=False)
 def send_message(
-    ticket_id: UUID,
+    ticket_id: str,
     data: MessageCreate,
     current_user: Human = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -80,7 +80,7 @@ def send_message(
 
 @router.patch("/tickets/{ticket_id}/read", response_model=APIResponse)
 def mark_messages_read(
-    ticket_id: UUID,
+    ticket_id: str,
     current_user: Human = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -94,7 +94,7 @@ def mark_messages_read(
 
 @router.get("/tickets/{ticket_id}/unread-count", response_model=APIResponse[UnreadCountOut])
 def get_unread_count(
-    ticket_id: UUID,
+    ticket_id: str,
     current_user: Human = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
