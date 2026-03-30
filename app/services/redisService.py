@@ -213,6 +213,28 @@ class RedisService:
             logger.error(f"❌ Redis SREM error for {set_key}: {e}")
             return False
     
+    def increment(self, key: str) -> int:
+        """
+        Increment a counter atomically.
+        
+        Args:
+            key: Redis key
+        
+        Returns:
+            int: New value after increment, -1 if failed
+        """
+        if not self.is_connected():
+            logger.warning(f"⚠️ Redis not connected, skipping INCR: {key}")
+            return -1
+        
+        try:
+            result = self._client.incr(key)
+            logger.debug(f"✅ INCR {key} -> {result}")
+            return result
+        except redis.RedisError as e:
+            logger.error(f"❌ Redis INCR error for {key}: {e}")
+            return -1
+    
     def close(self):
         """Close Redis connection"""
         if self._client:

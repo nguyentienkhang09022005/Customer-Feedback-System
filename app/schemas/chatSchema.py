@@ -4,6 +4,8 @@ from datetime import datetime
 from uuid import UUID
 from enum import Enum
 
+from app.schemas.paginationSchema import PaginationMeta
+
 
 class MessageType(str, Enum):
     TEXT = "text"
@@ -40,9 +42,7 @@ class MessageOut(BaseModel):
 
 class ChatHistoryOut(BaseModel):
     messages: List[MessageOut]
-    total: int
-    page: int
-    limit: int
+    meta: PaginationMeta
 
 
 class ConversationOut(BaseModel):

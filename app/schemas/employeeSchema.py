@@ -13,12 +13,12 @@ class EmployeeCreate(BaseHumanCreate):
     avatar: Optional[str] = None
 
 class EmployeeOut(HumanOut):
-    employee_code: str
+    employee_code: Optional[str] = None
     id_department: Optional[UUID] = None
-    job_title: str
-    max_ticket_capacity: int
-    csat_score: float
-    role_name: str
+    job_title: Optional[str] = None
+    max_ticket_capacity: Optional[int] = None
+    csat_score: Optional[float] = None
+    role_name: Optional[str] = None
     avatar: Optional[str] = None
 
 class EmployeeUpdate(BaseModel):

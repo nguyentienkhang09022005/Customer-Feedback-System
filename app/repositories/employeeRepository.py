@@ -51,6 +51,28 @@ class EmployeeRepository:
             Employee.status == "Active"
         ).order_by(Employee.csat_score.desc()).all()
 
+    def get_available_employees_with_ticket_counts(self, dept_id: uuid.UUID):
+        """Lấy danh sách employees kèm số ticket đang active trong 1 query"""
+        active_statuses = ["New", "In Progress", "Pending", "On Hold"]
+        
+        results = self.db.query(
+            Employee,
+            func.coalesce(func.count(Ticket.id_ticket), 0).label('ticket_count')
+        ).outerjoin(
+            Ticket,
+            and_(
+                Ticket.id_employee == Employee.id_employee,
+                Ticket.status.in_(active_statuses)
+            )
+        ).filter(
+            Employee.id_department == dept_id,
+            Employee.status == "Active"
+        ).group_by(Employee.id_employee).order_by(
+            Employee.csat_score.desc()
+        ).all()
+        
+        return results
+
     def get_best_employee_for_assignment(self, dept_id: uuid.UUID) -> Optional[Employee]:
         employees = self.get_available_employees_by_department(dept_id)
         if not employees:

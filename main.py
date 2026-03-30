@@ -1,15 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import socketio
+import os
 from app.api.v1 import roles, customerTypes, employees, customers, auth, user, ticketCategories, tickets, departments, \
     faq, chat, audit, sla, evaluate, notification
 from app.socketio.manager import sio
 
 app = FastAPI(title="Customer Feedback System")
 
+# Get allowed origins from environment or use defaults
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins="*",
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

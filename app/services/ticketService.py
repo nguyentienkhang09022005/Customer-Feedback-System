@@ -14,6 +14,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Rate limiting constants
+RATE_LIMIT_TICKETS = 5
+RATE_LIMIT_WINDOW_SECONDS = 3600  # 1 hour
+
 
 async def broadcast_ticket_assigned(ticket_id: str, employee_id: str):
     try:
@@ -64,6 +68,13 @@ class TicketService:
         self.load_balancer = LoadBalancer(db)
 
     def create_ticket(self, data: TicketCreate, customer_id: uuid.UUID) -> Ticket:
+        # Check rate limit
+        if not self._check_ticket_creation_rate_limit(customer_id):
+            raise HTTPException(
+                status_code=429, 
+                detail="Bạn đã tạo quá nhiều tickets. Vui lòng thử lại sau."
+            )
+        
         category = self.category_repo.get_by_id(str(data.id_category))
         if not category:
             raise HTTPException(status_code=404, detail="Không tìm thấy danh mục!")
@@ -102,9 +113,13 @@ class TicketService:
             logger.warning(f"Failed to send ticket created email: {e}")
 
         if category.auto_assign and category.id_department:
-            best_employee = self.load_balancer.get_best_employee_for_department(category.id_department)
+            # Use assign_ticket_with_lock to prevent race condition when multiple
+            # concurrent requests try to assign tickets to the same employee
+            best_employee = self.load_balancer.assign_ticket_with_lock(
+                created_ticket.id_ticket, 
+                category.id_department
+            )
             if best_employee:
-                created_ticket = self.repo.assign_to_employee(created_ticket.id_ticket, best_employee.id_employee)
                 created_ticket.status = "In Progress"
                 self.repo.update(created_ticket)
 
@@ -150,7 +165,11 @@ class TicketService:
 
             update_data["id_employee"] = None
             if new_category.auto_assign and new_category.id_department:
-                best_employee = self.load_balancer.get_best_employee_for_department(new_category.id_department)
+                # Use assign_ticket_with_lock to prevent race condition
+                best_employee = self.load_balancer.assign_ticket_with_lock(
+                    ticket_id, 
+                    new_category.id_department
+                )
                 if best_employee:
                     update_data["id_employee"] = best_employee.id_employee
                     update_data["status"] = "In Progress"
@@ -188,6 +207,31 @@ class TicketService:
         if not ticket:
             raise HTTPException(status_code=404, detail="Không tìm thấy ticket!")
         self.repo.delete(ticket)
+
+    def _check_ticket_creation_rate_limit(self, customer_id: uuid.UUID) -> bool:
+        """Check if customer has exceeded ticket creation rate limit"""
+        try:
+            from app.services.redisService import RedisService
+            redis_service = RedisService()
+            
+            key = f"rate_limit:ticket_create:{customer_id}"
+            current_count = redis_service.get(key)
+            
+            if current_count is None:
+                # First ticket in window
+                redis_service.set_with_expiry(key, "1", RATE_LIMIT_WINDOW_SECONDS)
+                return True
+            
+            if int(current_count) >= RATE_LIMIT_TICKETS:
+                return False
+            
+            # Increment counter
+            redis_service.increment(key)
+            return True
+        except Exception as e:
+            # If Redis fails, allow the request (fail-open)
+            logger.warning(f"Rate limit check failed, allowing request: {e}")
+            return True
 
     def get_unassigned_tickets_by_department(self, dept_id: uuid.UUID) -> List[Ticket]:
         return self.repo.get_unassigned_by_department(dept_id)

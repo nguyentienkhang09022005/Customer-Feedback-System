@@ -14,10 +14,10 @@ class BaseHumanCreate(BaseModel):
 
 class HumanOut(BaseModel):
     id: UUID
-    first_name: str
-    last_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     email: str
-    phone: str
+    phone: Optional[str] = None
     username: str
     status: str
     created_at: datetime

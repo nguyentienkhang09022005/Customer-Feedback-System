@@ -9,10 +9,10 @@ class CustomerCreate(BaseHumanCreate):
     avatar: Optional[str] = None
 
 class CustomerOut(HumanOut):
-    customer_code: str
-    membership_tier: str
-    timezone: str
-    customer_type: str
+    customer_code: Optional[str] = None
+    membership_tier: Optional[str] = None
+    timezone: Optional[str] = None
+    customer_type: Optional[str] = None
     avatar: Optional[str] = None
 
 class CustomerUpdate(BaseModel):

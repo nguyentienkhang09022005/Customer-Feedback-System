@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
@@ -13,6 +13,7 @@ from app.schemas.chatSchema import (
     MessageType, MessageUpdate
 )
 from app.core.response import APIResponse
+from app.core.pagination import paginate
 from app.api.dependencies import get_db, get_current_user, get_current_employee, get_current_customer
 from app.models.human import Human, Customer, Employee
 
@@ -22,20 +23,25 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 @router.get("/tickets/{ticket_id}/messages", response_model=APIResponse[ChatHistoryOut])
 def get_chat_history(
     ticket_id: UUID,
-    page: int = 1,
-    limit: int = 20,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: Human = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     try:
         service = ChatService(db)
         service.validate_participant(ticket_id, current_user.id)
-        messages, total = service.get_chat_history(ticket_id, page, limit)
+        
+        from app.models.interaction import Message
+        query = db.query(Message).filter(Message.ticket_id == ticket_id).order_by(Message.created_at.desc())
+        messages, meta = paginate(query, page, limit)
+        messages = list(messages)
+        
         return APIResponse(
             status=True,
             code=200,
             message="Thành công",
-            data=ChatHistoryOut(messages=messages, total=total, page=page, limit=limit)
+            data=ChatHistoryOut(messages=messages, meta=meta)
         )
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
@@ -52,6 +58,13 @@ def send_message(
     [HIDDEN] Vui lòng sử dụng Socket.IO 'send_message' event để gửi tin nhắn.
     API này đã bị ẩn khỏi tài liệu Swagger.
     """
+    # Check if ticket is closed
+    from app.services.ticketService import TicketService
+    ticket_service = TicketService(db)
+    ticket = ticket_service.get_ticket(ticket_id)
+    if ticket and ticket.status == "Closed":
+        raise HTTPException(status_code=400, detail="Ticket is closed. Cannot send messages.")
+    
     try:
         service = ChatService(db)
         message = service.send_message(ticket_id, current_user.id, data.content, data.message_type)

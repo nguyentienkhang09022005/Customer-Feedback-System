@@ -15,6 +15,19 @@ sio = socketio.AsyncServer(
 chat_namespace = CHAT_NAMESPACE
 
 
+def get_ticket_status(ticket_id: str) -> Optional[str]:
+    """Get ticket status by ID"""
+    from app.db.session import SessionLocal
+    from app.models.ticket import Ticket
+    import uuid as uuid_lib
+    db = SessionLocal()
+    try:
+        ticket = db.query(Ticket).filter(Ticket.id == uuid_lib.UUID(ticket_id)).first()
+        return ticket.status if ticket else None
+    finally:
+        db.close()
+
+
 def save_message_to_db(ticket_id: str, sender_id: str, content: str, message_type: str = 'text'):
     """Helper function to save message to database via ChatService"""
     # Import here to avoid circular import
@@ -35,20 +48,42 @@ def save_message_to_db(ticket_id: str, sender_id: str, content: str, message_typ
 
 
 @sio.on('connect', namespace=chat_namespace)
-async def on_connect(sid, environ):
-    auth_token = environ.get('HTTP_AUTHORIZATION', '')
-    if auth_token.startswith('Bearer '):
-        token = auth_token[7:]
-        user_id = verify_token(token, "access")
-
-        if not user_id:
-            return False
-
-        room_name = f"user_{user_id}"
-        await sio.enter_room(sid, room_name)
-
-        return True
-    return False
+async def on_connect(sid, environ, data=None):
+    token = None
+    
+    # Method 1: If data is a string (direct token)
+    if isinstance(data, str) and data:
+        token = data
+    # Method 2: If data is a dict with token key
+    elif isinstance(data, dict):
+        token = data.get('token')
+    # Method 3: Check environ for socketio auth (nested structure)
+    elif isinstance(environ.get('socketio'), dict):
+        socketio_auth = environ.get('socketio', {}).get('auth', {})
+        if isinstance(socketio_auth, dict):
+            token = socketio_auth.get('token')
+    
+    # Method 4: Fallback to Authorization header
+    if not token:
+        auth_header = environ.get('HTTP_AUTHORIZATION', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+    
+    if not token:
+        print(f"Connection rejected: No token for sid={sid}")
+        return False
+    
+    user_id = verify_token(token, "access")
+    if not user_id:
+        print(f"Connection rejected: Invalid token for sid={sid}")
+        return False
+    
+    # Store user_id in session
+    await sio.save_session(sid, {'user_id': str(user_id)}, namespace=chat_namespace)
+    
+    room_name = f"user_{user_id}"
+    await sio.enter_room(sid, room_name, namespace=chat_namespace)
+    return True
 
 
 @sio.on('disconnect', namespace=chat_namespace)
@@ -64,12 +99,12 @@ async def on_join_ticket(sid, data):
         return
 
     room = f"ticket_{ticket_id}"
-    await sio.enter_room(sid, room)
-    await sio.to(room).emit('user_joined', {
+    await sio.enter_room(sid, room, namespace=chat_namespace)
+    await sio.emit('user_joined', {
         'ticket_id': ticket_id,
         'user_id': user_id,
         'sid': sid
-    })
+    }, to=room, namespace=chat_namespace)
 
 
 @sio.on('leave_ticket', namespace=chat_namespace)
@@ -80,12 +115,12 @@ async def on_leave_ticket(sid, data):
         return
 
     room = f"ticket_{ticket_id}"
-    await sio.leave_room(sid, room)
-    await sio.to(room).emit('user_left', {
+    await sio.leave_room(sid, room, namespace=chat_namespace)
+    await sio.emit('user_left', {
         'ticket_id': ticket_id,
         'user_id': user_id,
         'sid': sid
-    })
+    }, to=room, namespace=chat_namespace)
 
 
 @sio.on('send_message', namespace=chat_namespace)
@@ -96,6 +131,16 @@ async def on_send_message(sid, data):
     message_type = data.get('type', 'text')
 
     if not all([ticket_id, user_id, content]):
+        return
+
+    # Check if ticket is closed
+    ticket_status = get_ticket_status(ticket_id)
+    if ticket_status == "Closed":
+        await sio.emit('message_error', {
+            'error': 'Ticket is closed. Cannot send messages.',
+            'ticket_id': ticket_id,
+            'code': 'TICKET_CLOSED'
+        }, to=f"user_{user_id}", namespace=chat_namespace)
         return
 
     # Save message to database
@@ -110,7 +155,7 @@ async def on_send_message(sid, data):
         return
 
     room = f"ticket_{ticket_id}"
-    await sio.to(room).emit('new_message', {
+    await sio.emit('new_message', {
         'ticket_id': ticket_id,
         'user_id': user_id,
         'content': message_out.content,
@@ -123,12 +168,12 @@ async def on_send_message(sid, data):
             'last_name': message_out.sender.last_name if message_out.sender else None,
             'avatar': message_out.sender.avatar if message_out.sender else None,
         }
-    })
+    }, to=room, namespace=chat_namespace)
 
 
 async def broadcast_to_ticket(ticket_id: str, event: str, data: dict):
     room = f"ticket_{ticket_id}"
-    await sio.to(room).emit(event, data)
+    await sio.emit(event, data, to=room, namespace=chat_namespace)
 
 
 @sio.on('typing_start', namespace=chat_namespace)
@@ -138,11 +183,11 @@ async def on_typing_start(sid, data):
     if not ticket_id:
         return
     room = f"ticket_{ticket_id}"
-    await sio.to(room).emit('user_typing', {
+    await sio.emit('user_typing', {
         'ticket_id': ticket_id,
         'user_id': user_id,
         'is_typing': True
-    })
+    }, to=room, namespace=chat_namespace)
 
 
 @sio.on('typing_stop', namespace=chat_namespace)
@@ -152,11 +197,11 @@ async def on_typing_stop(sid, data):
     if not ticket_id:
         return
     room = f"ticket_{ticket_id}"
-    await sio.to(room).emit('user_typing', {
+    await sio.emit('user_typing', {
         'ticket_id': ticket_id,
         'user_id': user_id,
         'is_typing': False
-    })
+    }, to=room, namespace=chat_namespace)
 
 
 @sio.on('mark_read', namespace=chat_namespace)
@@ -182,8 +227,8 @@ async def on_mark_read(sid, data):
     
     # Emit read status change to other users in the ticket room
     room = f"ticket_{ticket_id}"
-    await sio.to(room).emit('messages_read', {
+    await sio.emit('messages_read', {
         'ticket_id': ticket_id,
         'user_id': user_id,
         'read_by': user_id
-    })
+    }, to=room, namespace=chat_namespace)

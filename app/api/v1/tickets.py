@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
 
 from app.services.ticketService import TicketService
-from app.schemas.ticketSchema import TicketCreate, TicketUpdate, TicketOut, TicketAssign, TicketResolve, TicketClose
+from app.schemas.ticketSchema import TicketCreate, TicketUpdate, TicketOut, TicketAssign, TicketResolve, TicketClose, TicketListOut
 from app.core.response import APIResponse
+from app.core.pagination import paginate
 from app.api.dependencies import get_db, get_current_user, get_current_employee, get_current_customer
 from app.models.human import Human, Customer
+from app.models.ticket import Ticket
 
 router = APIRouter(prefix="/tickets", tags=["Ticket Management"])
 
@@ -26,44 +28,64 @@ def create_ticket(
         return APIResponse(status=False, code=e.status_code, message=e.detail)
 
 
-@router.get("/user", response_model=APIResponse[List[TicketOut]])
+@router.get("/user", response_model=APIResponse[TicketListOut])
 def get_all_tickets(
     current_user: Human = Depends(get_current_customer),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
-    tickets = TicketService(db).get_tickets_by_customer(current_user.id)
-    return APIResponse(status=True, code=200, message="Thành công", data=tickets)
+    query = db.query(Ticket).filter(Ticket.id_customer == current_user.id).order_by(Ticket.created_at.desc())
+    tickets, meta = paginate(query, page, limit)
+    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=list(tickets), meta=meta))
 
 
-@router.get("/unassigned", response_model=APIResponse[List[TicketOut]], dependencies=[Depends(get_current_employee)])
-def get_unassigned_tickets(db: Session = Depends(get_db)):
-    tickets = TicketService(db).get_unassigned_tickets()
-    return APIResponse(status=True, code=200, message="Thành công", data=tickets)
+@router.get("/unassigned", response_model=APIResponse[TicketListOut], dependencies=[Depends(get_current_employee)])
+def get_unassigned_tickets(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Ticket).filter(Ticket.id_employee == None).order_by(Ticket.created_at.desc())
+    tickets, meta = paginate(query, page, limit)
+    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=list(tickets), meta=meta))
 
 
-@router.get("/department/{dept_id}", response_model=APIResponse[List[TicketOut]], dependencies=[Depends(get_current_employee)])
-def get_tickets_by_department(dept_id: UUID, db: Session = Depends(get_db)):
-    tickets = TicketService(db).get_tickets_by_department(dept_id)
-    return APIResponse(status=True, code=200, message="Thành công", data=tickets)
+@router.get("/department/{dept_id}", response_model=APIResponse[TicketListOut], dependencies=[Depends(get_current_employee)])
+def get_tickets_by_department(
+    dept_id: UUID,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Ticket).filter(Ticket.id_department == dept_id).order_by(Ticket.created_at.desc())
+    tickets, meta = paginate(query, page, limit)
+    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=list(tickets), meta=meta))
 
 
-@router.get("/employee-tickets", response_model=APIResponse[List[TicketOut]], dependencies=[Depends(get_current_employee)])
+@router.get("/employee-tickets", response_model=APIResponse[TicketListOut], dependencies=[Depends(get_current_employee)])
 def get_my_tickets(
     current_user: Human = Depends(get_current_employee),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
-    tickets = TicketService(db).get_tickets_by_employee(current_user.id)
-    return APIResponse(status=True, code=200, message="Thành công", data=tickets)
+    query = db.query(Ticket).filter(Ticket.id_employee == current_user.id).order_by(Ticket.created_at.desc())
+    tickets, meta = paginate(query, page, limit)
+    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=list(tickets), meta=meta))
 
 
-@router.get("/all", response_model=APIResponse[List[TicketOut]], dependencies=[Depends(get_current_employee)])
+@router.get("/all", response_model=APIResponse[TicketListOut], dependencies=[Depends(get_current_employee)])
 def get_all_tickets_admin(
     current_user: Human = Depends(get_current_employee),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
     """Get all tickets - for employee/admin use only"""
-    tickets = TicketService(db).get_all_tickets()
-    return APIResponse(status=True, code=200, message="Thành công", data=tickets)
+    query = db.query(Ticket).order_by(Ticket.created_at.desc())
+    tickets, meta = paginate(query, page, limit)
+    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=list(tickets), meta=meta))
 
 
 @router.get("/{ticket_id}", response_model=APIResponse[TicketOut])

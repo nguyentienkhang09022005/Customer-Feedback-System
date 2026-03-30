@@ -1,7 +1,9 @@
 from pydantic import BaseModel, computed_field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
+
+from app.schemas.paginationSchema import PaginationMeta
 
 
 class TicketCreate(BaseModel):
@@ -60,3 +62,8 @@ class TicketResolve(BaseModel):
 
 class TicketClose(BaseModel):
     reason: Optional[str] = None
+
+
+class TicketListOut(BaseModel):
+    items: List[TicketOut]
+    meta: PaginationMeta

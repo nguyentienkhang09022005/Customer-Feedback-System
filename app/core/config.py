@@ -7,7 +7,10 @@ load_dotenv()
 class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL")
     
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "")
+    # Validate JWT_SECRET in production - fail fast if not configured
+    if not JWT_SECRET and os.getenv("ENVIRONMENT", "development") == "production":
+        raise ValueError("JWT_SECRET environment variable must be set in production")
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
