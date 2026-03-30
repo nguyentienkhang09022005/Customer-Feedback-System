@@ -119,7 +119,7 @@ class ChatService:
         
         return MessageOut(
             id_message=message.id_message,
-            content=message.message,
+            message=message.message,
             message_type=MessageType(message.message_type),
             is_read=message.is_read,
             created_at=message.created_at,

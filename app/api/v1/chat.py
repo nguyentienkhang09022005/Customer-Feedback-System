@@ -33,9 +33,9 @@ def get_chat_history(
         service.validate_participant(ticket_id, current_user.id)
         
         from app.models.interaction import Message
-        query = db.query(Message).filter(Message.ticket_id == ticket_id).order_by(Message.created_at.desc())
+        query = db.query(Message).filter(Message.id_ticket == ticket_id).order_by(Message.created_at.desc())
         messages, meta = paginate(query, page, limit)
-        messages = list(messages)
+        messages = [service._to_message_out(m) for m in messages]
         
         return APIResponse(
             status=True,

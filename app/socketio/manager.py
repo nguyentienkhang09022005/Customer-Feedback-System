@@ -22,7 +22,7 @@ def get_ticket_status(ticket_id: str) -> Optional[str]:
     import uuid as uuid_lib
     db = SessionLocal()
     try:
-        ticket = db.query(Ticket).filter(Ticket.id == uuid_lib.UUID(ticket_id)).first()
+        ticket = db.query(Ticket).filter(Ticket.id_ticket == uuid_lib.UUID(ticket_id)).first()
         return ticket.status if ticket else None
     finally:
         db.close()

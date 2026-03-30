@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
@@ -30,14 +30,13 @@ class UserBriefOut(BaseModel):
 
 class MessageOut(BaseModel):
     id_message: UUID
-    content: str
+    message: str = Field(alias='content')
     message_type: MessageType
     is_read: bool
     created_at: datetime
     sender: Optional[UserBriefOut] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 
 class ChatHistoryOut(BaseModel):
