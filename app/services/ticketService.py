@@ -128,6 +128,9 @@ class TicketService:
     def get_tickets_by_employee(self, employee_id: uuid.UUID) -> List[Ticket]:
         return self.repo.get_by_employee(employee_id)
 
+    def get_tickets_by_customer(self, customer_id: uuid.UUID) -> List[Ticket]:
+        return self.repo.get_by_customer(customer_id)
+
     def update_ticket(self, ticket_id: uuid.UUID, data: TicketUpdate) -> Ticket:
         ticket = self.repo.get_by_id(ticket_id)
         if not ticket:

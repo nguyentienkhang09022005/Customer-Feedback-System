@@ -28,10 +28,10 @@ def create_ticket(
 
 @router.get("/user", response_model=APIResponse[List[TicketOut]])
 def get_all_tickets(
-    current_user: Human = Depends(get_current_user),
+    current_user: Human = Depends(get_current_customer),
     db: Session = Depends(get_db)
 ):
-    tickets = TicketService(db).get_all_tickets()
+    tickets = TicketService(db).get_tickets_by_customer(current_user.id)
     return APIResponse(status=True, code=200, message="Thành công", data=tickets)
 
 
@@ -53,6 +53,16 @@ def get_my_tickets(
     db: Session = Depends(get_db)
 ):
     tickets = TicketService(db).get_tickets_by_employee(current_user.id)
+    return APIResponse(status=True, code=200, message="Thành công", data=tickets)
+
+
+@router.get("/all", response_model=APIResponse[List[TicketOut]], dependencies=[Depends(get_current_employee)])
+def get_all_tickets_admin(
+    current_user: Human = Depends(get_current_employee),
+    db: Session = Depends(get_db)
+):
+    """Get all tickets - for employee/admin use only"""
+    tickets = TicketService(db).get_all_tickets()
     return APIResponse(status=True, code=200, message="Thành công", data=tickets)
 
 

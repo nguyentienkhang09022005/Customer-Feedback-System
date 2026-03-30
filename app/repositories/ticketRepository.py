@@ -43,6 +43,9 @@ class TicketRepository:
             )
         ).all()
 
+    def get_by_customer(self, customer_id: uuid.UUID) -> List[Ticket]:
+        return self.db.query(Ticket).filter(Ticket.id_customer == customer_id).all()
+
     def get_active_ticket_count(self, employee_id: uuid.UUID) -> int:
         active_statuses = ["New", "In Progress", "Pending", "On Hold"]
         return self.db.query(Ticket).filter(
