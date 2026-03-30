@@ -2,6 +2,8 @@ import cloudinary
 import cloudinary.uploader
 from app.core.config import settings
 from io import BytesIO
+import time
+import hashlib
 
 
 def _parse_cloudinary_url(url: str) -> dict:
@@ -122,3 +124,47 @@ def delete_file(public_id: str) -> bool:
     init_cloudinary()
     result = cloudinary.uploader.destroy(public_id, resource_type="auto")
     return result.get("result") == "ok"
+
+
+def generate_upload_signature(filename: str, folder: str = "chat_attachments") -> dict:
+    """
+    Generate Cloudinary upload signature for frontend direct upload.
+    
+    Args:
+        filename: Original filename for the upload
+        folder: Cloudinary folder to upload to (default: chat_attachments)
+    
+    Returns:
+        dict: Contains signature, timestamp, api_key, cloud_name, folder, upload_url
+    """
+    init_cloudinary()
+    
+    parsed = _parse_cloudinary_url(settings.CLOUDINARY_URL)
+    cloud_name = parsed.get("cloud_name", "")
+    api_key = parsed.get("api_key", "")
+    api_secret = parsed.get("api_secret", "")
+    
+    timestamp = int(time.time())
+    
+    # Create signature payload
+    params_to_sign = {
+        "timestamp": timestamp,
+        "folder": folder,
+    }
+    
+    # Generate signature
+    def generate_signature(params: dict, secret: str) -> str:
+        sorted_params = sorted(params.items())
+        param_string = "&".join([f"{k}={v}" for k, v in sorted_params])
+        return hashlib.sha1(f"{param_string}{secret}".encode()).hexdigest()
+    
+    signature = generate_signature(params_to_sign, api_secret)
+    
+    return {
+        "signature": signature,
+        "timestamp": timestamp,
+        "api_key": api_key,
+        "cloud_name": cloud_name,
+        "folder": folder,
+        "upload_url": f"https://api.cloudinary.com/v1_1/{cloud_name}/auto/upload"
+    }

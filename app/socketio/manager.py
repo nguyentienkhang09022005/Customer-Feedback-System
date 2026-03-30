@@ -158,7 +158,7 @@ async def on_send_message(sid, data):
     await sio.emit('new_message', {
         'ticket_id': ticket_id,
         'user_id': user_id,
-        'content': message_out.content,
+        'content': message_out.message,
         'type': str(message_out.message_type.value),
         'id_message': str(message_out.id_message),
         'created_at': message_out.created_at.isoformat() if message_out.created_at else None,
