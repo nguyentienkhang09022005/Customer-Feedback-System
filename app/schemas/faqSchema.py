@@ -1,7 +1,8 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
+from app.schemas.paginationSchema import PaginationMeta
 
 class FAQCreate(BaseModel):
     title: str
@@ -45,3 +46,14 @@ class FAQListOut(BaseModel):
 
 class FAQDetailOut(FAQListOut):
     content: str
+
+
+class FAQPublicOut(FAQListOut):
+    """Public FAQ schema with full content included (for list and detail responses)."""
+    content: str
+
+
+class FAQPublicListResponse(BaseModel):
+    """Paginated response for public FAQ list endpoint."""
+    items: List[FAQPublicOut]
+    meta: PaginationMeta
