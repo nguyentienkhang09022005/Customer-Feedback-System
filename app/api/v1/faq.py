@@ -49,7 +49,7 @@ def get_public_faqs(
     # If article_id is provided, return single FAQ detail
     if article_id:
         try:
-            client_ip = request.client.host if request and request.client else "unknown_ip"
+            client_ip = request.client.host if (request and request.client) else "unknown_ip"
             article = faq_service.get_public_article_detail(article_id, client_ip)
             return APIResponse(status=True, code=200, message="Lấy chi tiết FAQ thành công!", data=article)
         except HTTPException as e:
@@ -99,7 +99,7 @@ def read_faq_detail(
     """
     response.headers["X-Deprecated"] = "true"
     try:
-        client_ip = request.client.host if request.client else "unknown_ip"
+        client_ip = request.client.host if (request and request.client) else "unknown_ip"
         article = FAQService(db).read_article_detail(article_id, client_ip)
         return APIResponse(status=True, code=200, message="Lấy chi tiết thành công!", data=article)
     except HTTPException as e:
