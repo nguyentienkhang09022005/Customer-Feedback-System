@@ -24,8 +24,8 @@ class FAQAuthorOut(BaseModel):
         from_attributes = True
 
 class FAQCategoryOut(BaseModel):
-    id_category: UUID
-    name: str
+    id_category: Optional[UUID] = None
+    name: Optional[str] = None
     class Config:
         from_attributes = True
 
@@ -36,7 +36,7 @@ class FAQListOut(BaseModel):
     is_published: bool
     created_at: datetime
     updated_at: datetime
-    id_category: UUID
+    id_category: Optional[UUID] = None
     id_author: UUID
     author: Optional[FAQAuthorOut] = None
     category: Optional[FAQCategoryOut] = None
