@@ -18,6 +18,28 @@ logger = logging.getLogger(__name__)
 RATE_LIMIT_TICKETS = 5
 RATE_LIMIT_WINDOW_SECONDS = 3600  # 1 hour
 
+# Status transition rules - defines valid transitions from one status to another
+STATUS_TRANSITIONS = {
+    "New": ["In Progress", "Pending", "On Hold", "Cancelled"],
+    "In Progress": ["Pending", "On Hold", "Resolved", "Cancelled"],
+    "Pending": ["In Progress", "On Hold", "Resolved", "Cancelled"],
+    "On Hold": ["In Progress", "Pending", "Resolved", "Cancelled"],
+    "Resolved": ["Closed", "In Progress"],  # Can reopen to In Progress or close
+    "Closed": [],  # No direct transitions - must use reopen
+    "Cancelled": ["New"],  # Can uncancel back to New
+}
+
+# Valid ticket statuses
+VALID_STATUSES = ["New", "In Progress", "Pending", "On Hold", "Resolved", "Closed", "Cancelled"]
+
+
+def _validate_status_transition(current_status: str, new_status: str) -> bool:
+    """Check if a status transition is valid"""
+    if current_status == new_status:
+        return True  # No change
+    allowed_transitions = STATUS_TRANSITIONS.get(current_status, [])
+    return new_status in allowed_transitions
+
 
 async def broadcast_ticket_assigned(ticket_id: str, employee_id: str):
     try:
@@ -122,6 +144,9 @@ class TicketService:
             if best_employee:
                 created_ticket.status = "In Progress"
                 self.repo.update(created_ticket)
+        else:
+            # Notify department members about unassigned ticket
+            self._notify_department_about_unassigned_ticket(created_ticket, category)
 
         return created_ticket
 
@@ -146,12 +171,26 @@ class TicketService:
     def get_tickets_by_customer(self, customer_id: uuid.UUID) -> List[Ticket]:
         return self.repo.get_by_customer(customer_id)
 
-    def update_ticket(self, ticket_id: uuid.UUID, data: TicketUpdate) -> Ticket:
+    def update_ticket(self, ticket_id: uuid.UUID, data: TicketUpdate, actor_id: uuid.UUID = None) -> Ticket:
         ticket = self.repo.get_by_id(ticket_id)
         if not ticket:
             raise HTTPException(status_code=404, detail="Không tìm thấy ticket!")
 
         update_data = data.model_dump(exclude_unset=True)
+
+        # Validate status transition if status is being changed
+        if "status" in update_data:
+            new_status = update_data["status"]
+            if not _validate_status_transition(ticket.status, new_status):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Không thể chuyển từ '{ticket.status}' sang '{new_status}'. "
+                           f"Các trạng thái cho phép: {STATUS_TRANSITIONS.get(ticket.status, [])}"
+                )
+        
+        # Validate new status value is valid
+        if "status" in update_data and update_data["status"] not in VALID_STATUSES:
+            raise HTTPException(status_code=400, detail=f"Trạng thái '{update_data['status']}' không hợp lệ!")
 
         if "severity" in update_data and update_data["severity"] != ticket.severity:
             active_sla = self.sla_repo.get_active_by_severity(update_data["severity"])
@@ -236,6 +275,43 @@ class TicketService:
     def get_unassigned_tickets_by_department(self, dept_id: uuid.UUID) -> List[Ticket]:
         return self.repo.get_unassigned_by_department(dept_id)
 
+    def _notify_department_about_unassigned_ticket(self, ticket: Ticket, category):
+        """Notify department members about a new unassigned ticket"""
+        try:
+            from app.repositories.employeeRepository import EmployeeRepository
+            from app.schemas.notificationSchema import NotificationCreate
+            from app.services.notificationService import NotificationService
+            
+            emp_repo = EmployeeRepository(self.db)
+            noti_service = NotificationService(self.db)
+            
+            # Get all active department members (including manager)
+            members = emp_repo.get_department_all_members(category.id_department)
+            
+            if not members:
+                return
+            
+            short_title = ticket.title[:30] + "..." if len(ticket.title) > 30 else ticket.title
+            title = f"Ticket mới chưa được phân công"
+            content = f"Ticket #{str(ticket.id_ticket)[:8]}: '{short_title}' đang chờ được tiếp nhận."
+            
+            for member in members:
+                if member.status == "Active":
+                    try:
+                        noti_data = NotificationCreate(
+                            title=title,
+                            content=content,
+                            notification_type="TICKET_UNASSIGNED",
+                            id_reference=ticket.id_ticket,
+                            id_receiver=member.id
+                        )
+                        noti_service.create_and_send(noti_data)
+                    except Exception as e:
+                        logger.warning(f"Failed to notify member {member.id}: {e}")
+                        
+        except Exception as e:
+            logger.warning(f"Failed to notify department about unassigned ticket: {e}")
+
     def _trigger_csat_survey(self, ticket: Ticket):
         """Trigger CSAT survey for resolved ticket - placeholder for future implementation"""
         try:
@@ -245,14 +321,25 @@ class TicketService:
         except Exception as e:
             logger.warning(f"Failed to trigger CSAT survey: {e}")
 
-    def resolve_ticket(self, ticket_id: uuid.UUID, resolution_note: str = None) -> Ticket:
+    def resolve_ticket(self, ticket_id: uuid.UUID, resolution_note: str = None, actor_id: uuid.UUID = None) -> Ticket:
         """Resolve ticket - chuyển sang Resolved status và trigger CSAT survey"""
         ticket = self.repo.get_by_id(ticket_id)
         if not ticket:
             raise HTTPException(status_code=404, detail="Không tìm thấy ticket!")
         
+        # Validate status transition
+        if not _validate_status_transition(ticket.status, "Resolved"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Không thể giải quyết ticket từ trạng thái '{ticket.status}'. "
+                       f"Ticket phải ở trạng thái In Progress, Pending, hoặc On Hold."
+            )
+        
         ticket.status = "Resolved"
-        ticket.resolution_note = resolution_note
+        
+        # Store resolution note if provided (requires model update, set as attribute for now)
+        if resolution_note:
+            ticket.resolution_note = resolution_note
         
         updated_ticket = self.repo.update(ticket)
         
@@ -261,7 +348,7 @@ class TicketService:
         
         return updated_ticket
 
-    def close_ticket(self, ticket_id: uuid.UUID, reason: str = None) -> Ticket:
+    def close_ticket(self, ticket_id: uuid.UUID, reason: str = None, actor_id: uuid.UUID = None, actor_type: str = None) -> Ticket:
         """Close ticket - chỉ cho phép close từ Resolved"""
         ticket = self.repo.get_by_id(ticket_id)
         if not ticket:
@@ -270,7 +357,82 @@ class TicketService:
         if ticket.status != "Resolved":
             raise HTTPException(status_code=400, detail="Chỉ có thể đóng ticket từ trạng thái Resolved!")
         
+        old_status = ticket.status
         ticket.status = "Closed"
-        ticket.resolution_note = reason
         
-        return self.repo.update(ticket)
+        # Store close reason if provided
+        if reason:
+            ticket.resolution_note = reason
+        
+        updated_ticket = self.repo.update(ticket)
+        
+        # Log closure to history
+        try:
+            from app.services.ticketHistoryService import TicketHistoryService
+            history_service = TicketHistoryService(self.db)
+            history_service.log_closure(updated_ticket, reason, actor_id, actor_type)
+        except Exception as e:
+            logger.warning(f"Failed to log ticket closure: {e}")
+        
+        return updated_ticket
+
+    def reopen_ticket(self, ticket_id: uuid.UUID, reason: str, actor_id: uuid.UUID = None, actor_type: str = None) -> Ticket:
+        """
+        Reopen a closed ticket - customer can reopen their own ticket.
+        Ticket goes back to 'In Progress' status if it was assigned, otherwise 'New'.
+        """
+        ticket = self.repo.get_by_id(ticket_id)
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Không tìm thấy ticket!")
+        
+        # Can only reopen from Closed status
+        if ticket.status != "Closed":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Chỉ có thể mở lại ticket từ trạng thái 'Closed'! Trạng thái hiện tại: '{ticket.status}'"
+            )
+        
+        if not reason or len(reason.strip()) == 0:
+            raise HTTPException(status_code=400, detail="Vui lòng cung cấp lý do mở lại ticket!")
+        
+        old_status = ticket.status
+        
+        # If ticket was assigned before, keep assignment, otherwise set to New for re-assignment
+        if ticket.id_employee:
+            ticket.status = "In Progress"
+        else:
+            ticket.status = "New"
+        
+        # Clear resolution note since we're reopening
+        ticket.resolution_note = None
+        
+        updated_ticket = self.repo.update(ticket)
+        
+        # Log the reopen action to history
+        try:
+            from app.services.ticketHistoryService import TicketHistoryService
+            history_service = TicketHistoryService(self.db)
+            history_service.log_reopen(updated_ticket, reason, actor_id, actor_type)
+        except Exception as e:
+            logger.warning(f"Failed to log ticket reopen: {e}")
+        
+        # Notify assigned employee about the reopen
+        if updated_ticket.id_employee:
+            try:
+                from app.schemas.notificationSchema import NotificationCreate
+                noti_service = NotificationService(self.db)
+                short_title = ticket.title[:30] + "..." if len(ticket.title) > 30 else ticket.title
+                short_reason = reason[:50] + "..." if len(reason) > 50 else reason
+                
+                noti_data = NotificationCreate(
+                    title="Ticket được mở lại",
+                    content=f"Khách hàng đã mở lại ticket #{str(ticket.id_ticket)[:8]}: '{short_title}'. Lý do: {short_reason}",
+                    notification_type="TICKET_REOPENED",
+                    id_reference=ticket.id_ticket,
+                    id_receiver=updated_ticket.id_employee
+                )
+                noti_service.create_and_send(noti_data)
+            except Exception as e:
+                logger.warning(f"Failed to send reopen notification: {e}")
+        
+        return updated_ticket

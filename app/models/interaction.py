@@ -24,7 +24,7 @@ class Message(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     id_ticket = Column(UUID(as_uuid=True), ForeignKey("tickets.id_ticket", ondelete="CASCADE"))
-    id_sender = Column(UUID(as_uuid=True), ForeignKey("humans.id", ondelete="SET_NULL"))
+    id_sender = Column(UUID(as_uuid=True), ForeignKey("humans.id", ondelete="SET NULL"))
 
 
 class Attachment(Base):

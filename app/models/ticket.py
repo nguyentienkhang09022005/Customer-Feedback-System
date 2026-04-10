@@ -32,6 +32,7 @@ class Ticket(Base):
     description = Column(Text)
     status = Column(String(50), default="New")
     severity = Column(String(50))
+    resolution_note = Column(Text)  # Ghi chú khi resolve/close ticket
 
     version = Column(Integer, nullable=False, default=1)
 
@@ -47,6 +48,10 @@ class Ticket(Base):
     __mapper_args__ = {
         "version_id_col": version
     }
+
+    # Relationships
+    comments = relationship("TicketComment", back_populates="ticket", cascade="all, delete-orphan")
+    history = relationship("TicketHistory", back_populates="ticket", cascade="all, delete-orphan")
 
     @property
     def is_overdue(self) -> bool:

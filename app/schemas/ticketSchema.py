@@ -65,6 +65,10 @@ class TicketClose(BaseModel):
     reason: Optional[str] = None
 
 
+class TicketReopen(BaseModel):
+    reason: str  # Bắt buộc - lý do mở lại ticket
+
+
 class TicketListOut(BaseModel):
     items: List[TicketOut]
     meta: PaginationMeta

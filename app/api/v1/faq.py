@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
@@ -85,25 +85,6 @@ def get_public_faqs(
 def get_private_faqs(db: Session = Depends(get_db)):
     articles = FAQService(db).get_private_articles()
     return APIResponse(status=True, code=200, message="Lấy danh sách private thành công!", data=articles)
-
-@router.get("/{article_id}", response_model=APIResponse[FAQDetailOut], deprecated=True)
-def read_faq_detail(
-    article_id: UUID,
-    request: Request,
-    response: Response,
-    db: Session = Depends(get_db)
-):
-    """
-    DEPRECATED: Use GET /faqs/public?article_id={article_id} instead.
-    This endpoint will be removed in a future version.
-    """
-    response.headers["X-Deprecated"] = "true"
-    try:
-        client_ip = request.client.host if (request and request.client) else "unknown_ip"
-        article = FAQService(db).read_article_detail(article_id, client_ip)
-        return APIResponse(status=True, code=200, message="Lấy chi tiết thành công!", data=article)
-    except HTTPException as e:
-        return APIResponse(status=False, code=e.status_code, message=e.detail)
 
 @router.patch("/{article_id}", response_model=APIResponse[FAQDetailOut], dependencies=[Depends(get_current_employee)])
 def update_faq(

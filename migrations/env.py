@@ -12,6 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.core.config import settings
 from app.models.human import Role, CustomerType, Human, Employee, Customer
 from app.models.ticket import TicketCategory, SLAPolicy, Ticket
+from app.models.ticketComment import TicketComment
+from app.models.ticketHistory import TicketHistory
 from app.models.interaction import Message, Attachment, Evaluate, Notification
 from app.models.system import AuditLog, FAQArticle
 from app.models.department import Department
