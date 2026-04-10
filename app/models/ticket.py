@@ -21,7 +21,7 @@ class SLAPolicy(Base):
     id_policy = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     policy_name = Column(String(100), nullable=False)
     severity = Column(String(50), nullable=False)
-    max_resolution_minutes = Column(Integer, nullable=False)
+    max_resolution_days = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True)
 
 

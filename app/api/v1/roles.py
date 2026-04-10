@@ -5,20 +5,19 @@ from typing import List
 from app.services.roleService import RoleService
 from app.core.response import APIResponse
 from app.schemas.roleSchema import RoleCreate, RoleUpdate, RoleOut
-from app.api.dependencies import get_db, get_current_admin
+from app.api.dependencies import get_db, get_current_employee, get_current_admin
 
 router = APIRouter(
     prefix="/roles",
     tags=["Roles Management"],
-    dependencies=[Depends(get_current_admin)]
 )
 
-@router.get("", response_model=APIResponse[List[RoleOut]])
+@router.get("", response_model=APIResponse[List[RoleOut]], dependencies=[Depends(get_current_employee)])
 def get_roles(db: Session = Depends(get_db)):
     roles = RoleService(db).get_all_roles()
     return APIResponse(status=True, code=200, message="Thành công", data=roles)
 
-@router.post("", response_model=APIResponse[RoleOut])
+@router.post("", response_model=APIResponse[RoleOut], dependencies=[Depends(get_current_admin)])
 def create_role(data: RoleCreate, db: Session = Depends(get_db)):
     try:
         role = RoleService(db).create_role(data)
@@ -26,7 +25,7 @@ def create_role(data: RoleCreate, db: Session = Depends(get_db)):
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
 
-@router.put("/{role_name}", response_model=APIResponse[RoleOut])
+@router.put("/{role_name}", response_model=APIResponse[RoleOut], dependencies=[Depends(get_current_admin)])
 def update_role(role_name: str, data: RoleUpdate, db: Session = Depends(get_db)):
     try:
         role = RoleService(db).update_role(role_name, data)
@@ -34,7 +33,7 @@ def update_role(role_name: str, data: RoleUpdate, db: Session = Depends(get_db))
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
 
-@router.delete("/{role_name}", response_model=APIResponse)
+@router.delete("/{role_name}", response_model=APIResponse, dependencies=[Depends(get_current_admin)])
 def delete_role(role_name: str, db: Session = Depends(get_db)):
     try:
         RoleService(db).delete_role(role_name)

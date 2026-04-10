@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.api.dependencies import get_db, get_current_user
-from app.schemas.authSchema import LoginRequest, TokenResponse, RefreshTokenRequest, RegisterRequest, MessageResponse, VerifyOTPRequest, ForgotPasswordRequest, ResetPasswordRequest
+from app.schemas.authSchema import LoginRequest, TokenResponse, RefreshTokenRequest, RegisterRequest, MessageResponse, VerifyOTPRequest, ForgotPasswordRequest, ResetPasswordRequest, LogoutRequest
 from app.services.authService import AuthService
 from app.models.human import Human
 from app.api.dependencies import security
@@ -133,17 +133,21 @@ def refresh(request: RefreshTokenRequest, db: Session = Depends(get_db)):
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
-@router.post("/logout")
+@router.post("/logout", response_model=MessageResponse)
 def logout(
+    request: LogoutRequest = None,
     current_user: Human = Depends(get_current_user),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """
-    Logout current user by blacklisting their access token.
+    Logout current user by blacklisting their access token and optionally refresh token.
     """
     from app.core.security import decode_token_unsafe
     from app.services.tokenBlacklistService import TokenBlacklistService
     from datetime import datetime
+    import logging
+    
+    logger = logging.getLogger(__name__)
     
     token = credentials.credentials
     payload = decode_token_unsafe(token)
@@ -154,10 +158,35 @@ def logout(
         if jti and exp:
             expires_in = exp - int(datetime.utcnow().timestamp())
             if expires_in > 0:
-                TokenBlacklistService.blacklist_access_token(
+                success = TokenBlacklistService.blacklist_access_token(
                     jti, 
                     str(current_user.id), 
                     expires_in
                 )
+                if not success:
+                    logger.error(f"Failed to blacklist access token {jti} for user {current_user.id}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Không thể đăng xuất. Vui lòng thử lại!"
+                    )
     
-    return {"message": "Đăng xuất thành công!"}
+    # Blacklist refresh token if provided
+    if request and request.refresh_token:
+        refresh_payload = decode_token_unsafe(request.refresh_token)
+        if refresh_payload:
+            refresh_jti = refresh_payload.get("jti")
+            refresh_exp = refresh_payload.get("exp")
+            if refresh_jti and refresh_exp:
+                refresh_expires_in = refresh_exp - int(datetime.utcnow().timestamp())
+                if refresh_expires_in > 0:
+                    success = TokenBlacklistService.blacklist_refresh_token(
+                        refresh_jti,
+                        str(current_user.id),
+                        refresh_expires_in
+                    )
+                    if not success:
+                        logger.error(f"Failed to blacklist refresh token {refresh_jti} for user {current_user.id}")
+                        # Don't fail the whole logout if refresh token blacklist fails
+                        # Access token is already blacklisted
+    
+    return MessageResponse(message="Đăng xuất thành công!")

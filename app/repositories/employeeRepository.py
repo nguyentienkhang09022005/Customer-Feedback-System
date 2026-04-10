@@ -92,3 +92,41 @@ class EmployeeRepository:
                 return emp
         
         return None
+
+    def assign_to_department(self, emp_id: uuid.UUID, dept_id: uuid.UUID) -> Employee:
+        """Gán nhân viên vào phòng ban"""
+        emp = self.get_by_id(str(emp_id))
+        if emp:
+            emp.id_department = dept_id
+            self.db.commit()
+            self.db.refresh(emp)
+        return emp
+
+    def remove_from_department(self, emp_id: uuid.UUID) -> Employee:
+        """Xóa nhân viên khỏi phòng ban (set id_department = None)"""
+        emp = self.get_by_id(str(emp_id))
+        if emp:
+            emp.id_department = None
+            self.db.commit()
+            self.db.refresh(emp)
+        return emp
+
+    def get_department_manager(self, dept_id: uuid.UUID) -> Optional[Employee]:
+        """Lấy manager của phòng ban"""
+        return self.db.query(Employee).filter(
+            Employee.id_department == dept_id,
+            Employee.role_name == "Manager"
+        ).first()
+
+    def get_department_members(self, dept_id: uuid.UUID) -> List[Employee]:
+        """Lấy tất cả thành viên trong phòng ban (không bao gồm manager đã được chỉ định riêng)"""
+        return self.db.query(Employee).filter(
+            Employee.id_department == dept_id,
+            Employee.role_name != "Manager"
+        ).all()
+
+    def get_department_all_members(self, dept_id: uuid.UUID) -> List[Employee]:
+        """Lấy tất cả thành viên trong phòng ban (bao gồm cả manager)"""
+        return self.db.query(Employee).filter(
+            Employee.id_department == dept_id
+        ).all()

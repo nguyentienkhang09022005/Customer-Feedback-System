@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
+from uuid import UUID
 from app.services.employeeService import EmployeeService
+from app.repositories.employeeRepository import EmployeeRepository
 from app.core.response import APIResponse
 from app.schemas.employeeSchema import EmployeeCreate, EmployeeUpdate, EmployeeOut
 from app.api.dependencies import get_db, get_current_employee
@@ -36,3 +38,11 @@ def delete_employee(emp_id: str, db: Session = Depends(get_db)):
         return APIResponse(status=True, code=200, message="Xóa thành công")
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
+
+
+@router.get("/department/{dept_id}", response_model=APIResponse[List[EmployeeOut]], dependencies=[Depends(get_current_employee)])
+def get_employees_by_department(dept_id: UUID, db: Session = Depends(get_db)):
+    """Lấy danh sách nhân viên theo phòng ban"""
+    repo = EmployeeRepository(db)
+    emps = repo.get_by_department(dept_id)
+    return APIResponse(status=True, code=200, message="Thành công", data=emps)

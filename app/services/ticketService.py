@@ -86,7 +86,7 @@ class TicketService:
         active_sla = self.sla_repo.get_active_by_severity(data.severity)
 
         if active_sla:
-            expired_date = datetime.utcnow() + timedelta(minutes=active_sla.max_resolution_minutes)
+            expired_date = datetime.utcnow() + timedelta(days=active_sla.max_resolution_days)
         else:
             expired_date = None
 
@@ -156,7 +156,7 @@ class TicketService:
         if "severity" in update_data and update_data["severity"] != ticket.severity:
             active_sla = self.sla_repo.get_active_by_severity(update_data["severity"])
             if active_sla:
-                update_data["expired_date"] = datetime.utcnow() + timedelta(minutes=active_sla.max_resolution_minutes)
+                update_data["expired_date"] = datetime.utcnow() + timedelta(days=active_sla.max_resolution_days)
 
         if "id_category" in update_data and update_data["id_category"] != ticket.id_category:
             new_category = self.category_repo.get_by_id(str(update_data["id_category"]))
