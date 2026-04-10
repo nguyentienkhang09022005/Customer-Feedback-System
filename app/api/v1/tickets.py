@@ -44,7 +44,15 @@ def get_all_tickets(
         )
         .order_by(Ticket.created_at.desc())
     )
-    results = query.all()
+    
+    # Get total count efficiently
+    total = query.count()
+    total_pages = (total + limit - 1) // limit if total > 0 else 1
+    
+    # Apply database-level pagination with limit/offset
+    skip = (page - 1) * limit
+    results = query.offset(skip).limit(limit).all()
+    
     tickets = []
     for ticket, category_name in results:
         ticket_dict = {
@@ -63,12 +71,8 @@ def get_all_tickets(
         }
         tickets.append(ticket_dict)
     
-    skip = (page - 1) * limit
-    total = len(tickets)
-    total_pages = (total + limit - 1) // limit
-    paginated_items = tickets[skip:skip + limit]
     meta = {"page": page, "limit": limit, "total": total, "total_pages": total_pages, "has_next": page < total_pages, "has_prev": page > 1}
-    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=paginated_items, meta=meta))
+    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=tickets, meta=meta))
 
 
 @router.get("/user/closed", response_model=APIResponse[TicketListOut])
@@ -88,7 +92,15 @@ def get_my_closed_tickets_customer(
         )
         .order_by(Ticket.updated_at.desc())
     )
-    results = query.all()
+    
+    # Get total count efficiently
+    total = query.count()
+    total_pages = (total + limit - 1) // limit if total > 0 else 1
+    
+    # Apply database-level pagination with limit/offset
+    skip = (page - 1) * limit
+    results = query.offset(skip).limit(limit).all()
+    
     tickets = []
     for ticket, category_name in results:
         ticket_dict = {
@@ -107,12 +119,8 @@ def get_my_closed_tickets_customer(
         }
         tickets.append(ticket_dict)
     
-    skip = (page - 1) * limit
-    total = len(tickets)
-    total_pages = (total + limit - 1) // limit
-    paginated_items = tickets[skip:skip + limit]
     meta = {"page": page, "limit": limit, "total": total, "total_pages": total_pages, "has_next": page < total_pages, "has_prev": page > 1}
-    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=paginated_items, meta=meta))
+    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=tickets, meta=meta))
 
 
 @router.get("/unassigned", response_model=APIResponse[TicketListOut], dependencies=[Depends(get_current_employee)])
@@ -127,7 +135,15 @@ def get_unassigned_tickets(
         .filter(Ticket.id_employee == None)
         .order_by(Ticket.created_at.desc())
     )
-    results = query.all()
+    
+    # Get total count efficiently
+    total = query.count()
+    total_pages = (total + limit - 1) // limit if total > 0 else 1
+    
+    # Apply database-level pagination with limit/offset
+    skip = (page - 1) * limit
+    results = query.offset(skip).limit(limit).all()
+    
     tickets = []
     for ticket, category_name in results:
         ticket_dict = {
@@ -146,12 +162,8 @@ def get_unassigned_tickets(
         }
         tickets.append(ticket_dict)
     
-    skip = (page - 1) * limit
-    total = len(tickets)
-    total_pages = (total + limit - 1) // limit
-    paginated_items = tickets[skip:skip + limit]
     meta = {"page": page, "limit": limit, "total": total, "total_pages": total_pages, "has_next": page < total_pages, "has_prev": page > 1}
-    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=paginated_items, meta=meta))
+    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=tickets, meta=meta))
 
 
 @router.get("/department/{dept_id}", response_model=APIResponse[TicketListOut], dependencies=[Depends(get_current_employee)])
@@ -182,7 +194,15 @@ def get_my_tickets(
         )
         .order_by(Ticket.created_at.desc())
     )
-    results = query.all()
+    
+    # Get total count efficiently
+    total = query.count()
+    total_pages = (total + limit - 1) // limit if total > 0 else 1
+    
+    # Apply database-level pagination with limit/offset
+    skip = (page - 1) * limit
+    results = query.offset(skip).limit(limit).all()
+    
     tickets = []
     for ticket, category_name in results:
         ticket_dict = {
@@ -201,12 +221,8 @@ def get_my_tickets(
         }
         tickets.append(ticket_dict)
     
-    skip = (page - 1) * limit
-    total = len(tickets)
-    total_pages = (total + limit - 1) // limit
-    paginated_items = tickets[skip:skip + limit]
     meta = {"page": page, "limit": limit, "total": total, "total_pages": total_pages, "has_next": page < total_pages, "has_prev": page > 1}
-    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=paginated_items, meta=meta))
+    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=tickets, meta=meta))
 
 
 @router.get("/employee-tickets/closed", response_model=APIResponse[TicketListOut], dependencies=[Depends(get_current_employee)])
@@ -226,7 +242,15 @@ def get_my_closed_tickets(
         )
         .order_by(Ticket.updated_at.desc())
     )
-    results = query.all()
+    
+    # Get total count efficiently
+    total = query.count()
+    total_pages = (total + limit - 1) // limit if total > 0 else 1
+    
+    # Apply database-level pagination with limit/offset
+    skip = (page - 1) * limit
+    results = query.offset(skip).limit(limit).all()
+    
     tickets = []
     for ticket, category_name in results:
         ticket_dict = {
@@ -245,12 +269,8 @@ def get_my_closed_tickets(
         }
         tickets.append(ticket_dict)
     
-    skip = (page - 1) * limit
-    total = len(tickets)
-    total_pages = (total + limit - 1) // limit
-    paginated_items = tickets[skip:skip + limit]
     meta = {"page": page, "limit": limit, "total": total, "total_pages": total_pages, "has_next": page < total_pages, "has_prev": page > 1}
-    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=paginated_items, meta=meta))
+    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=tickets, meta=meta))
 
 
 @router.get("/all", response_model=APIResponse[TicketListOut], dependencies=[Depends(get_current_employee)])
@@ -266,7 +286,15 @@ def get_all_tickets_admin(
         .outerjoin(TicketCategory, Ticket.id_category == TicketCategory.id_category)
         .order_by(Ticket.created_at.desc())
     )
-    results = query.all()
+    
+    # Get total count efficiently
+    total = query.count()
+    total_pages = (total + limit - 1) // limit if total > 0 else 1
+    
+    # Apply database-level pagination with limit/offset
+    skip = (page - 1) * limit
+    results = query.offset(skip).limit(limit).all()
+    
     tickets = []
     for ticket, category_name in results:
         ticket_dict = {
@@ -285,18 +313,22 @@ def get_all_tickets_admin(
         }
         tickets.append(ticket_dict)
     
-    skip = (page - 1) * limit
-    total = len(tickets)
-    total_pages = (total + limit - 1) // limit
-    paginated_items = tickets[skip:skip + limit]
     meta = {"page": page, "limit": limit, "total": total, "total_pages": total_pages, "has_next": page < total_pages, "has_prev": page > 1}
-    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=paginated_items, meta=meta))
+    return APIResponse(status=True, code=200, message="Thành công", data=TicketListOut(items=tickets, meta=meta))
 
 
 @router.get("/{ticket_id}", response_model=APIResponse[TicketOut])
-def get_ticket(ticket_id: UUID, db: Session = Depends(get_db)):
+def get_ticket(ticket_id: UUID, current_user: Human = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get ticket by ID - requires authentication and ticket access authorization"""
     try:
-        ticket = TicketService(db).get_ticket_by_id(ticket_id)
+        service = TicketService(db)
+        ticket = service.get_ticket_by_id(ticket_id)
+        
+        # Authorization check: user must be customer who owns ticket, employee assigned, or employee
+        if current_user.type == 'customer' and ticket.id_customer != current_user.id:
+            from app.core.response import APIResponse
+            return APIResponse(status=False, code=403, message="Bạn không có quyền truy cập ticket này!")
+        
         return APIResponse(status=True, code=200, message="Thành công", data=ticket)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
@@ -314,7 +346,7 @@ def update_ticket(ticket_id: UUID, data: TicketUpdate, db: Session = Depends(get
 @router.post("/assign", response_model=APIResponse[TicketOut], dependencies=[Depends(get_current_employee)])
 def assign_ticket(data: TicketAssign, db: Session = Depends(get_db)):
     try:
-        ticket = TicketService(db).assign_ticket(data.id_employee, data)
+        ticket = TicketService(db).assign_ticket(data.id_ticket, data)
         return APIResponse(status=True, code=200, message="Giao ticket thành công", data=ticket)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)

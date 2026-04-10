@@ -187,12 +187,20 @@ async def cleanup_orphan_attachments(
     Cleanup orphaned attachments (admin only).
     Deletes attachments that are not linked to any entity after X days.
     """
-    # TODO: Add admin check
-    # if current_user.type != 'employee' or current_user.role_name != 'Admin':
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Admin access required"
-    #     )
+    # Admin check - only employees with Admin role can cleanup
+    if current_user.type != 'employee':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    from app.models.human import Employee
+    employee = db.query(Employee).filter(Employee.id == current_user.id).first()
+    if not employee or employee.role_name != "Admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
     
     service = AttachmentService(db)
     deleted_count = await service.cleanup_orphan_attachments(days)

@@ -152,11 +152,11 @@ def generate_upload_signature(filename: str, folder: str = "chat_attachments") -
         "folder": folder,
     }
     
-    # Generate signature
+    # Generate SHA256 HMAC signature
     def generate_signature(params: dict, secret: str) -> str:
         sorted_params = sorted(params.items())
         param_string = "&".join([f"{k}={v}" for k, v in sorted_params])
-        return hashlib.sha1(f"{param_string}{secret}".encode()).hexdigest()
+        return hashlib.sha256(f"{param_string}{secret}".encode()).hexdigest()
     
     signature = generate_signature(params_to_sign, api_secret)
     

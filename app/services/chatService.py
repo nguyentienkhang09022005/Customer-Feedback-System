@@ -103,10 +103,16 @@ class ChatService:
     ) -> Tuple[List, int]:
         return self.message_repo.get_conversations_for_customer(customer_id, page, limit)
 
-    def _to_message_out(self, message: Message) -> MessageOut:
+    def _to_message_out(self, message: Message, sender_cache: dict = None) -> MessageOut:
         sender = None
         if message.id_sender:
-            sender = self.db.query(Human).filter(Human.id == message.id_sender).first()
+            # Use cache if provided to avoid N+1 queries
+            if sender_cache is not None:
+                if message.id_sender not in sender_cache:
+                    sender_cache[message.id_sender] = self.db.query(Human).filter(Human.id == message.id_sender).first()
+                sender = sender_cache[message.id_sender]
+            else:
+                sender = self.db.query(Human).filter(Human.id == message.id_sender).first()
         
         sender_out = None
         if sender:

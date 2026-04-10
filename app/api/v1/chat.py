@@ -128,21 +128,37 @@ def get_conversations(
         else:
             return APIResponse(status=False, code=403, message="Không có quyền truy cập")
         
+        # Pre-fetch all related data in bulk to avoid N+1 queries
+        ticket_ids = [t.id_ticket for t in tickets]
+        customer_ids = list(set([t.id_customer for t in tickets if t.id_customer]))
+        employee_ids = list(set([t.id_employee for t in tickets if t.id_employee]))
+        
+        # Bulk query customers
+        customers = {c.id: c for c in db.query(Customer).filter(Customer.id.in_(customer_ids)).all()} if customer_ids else {}
+        # Bulk query employees
+        employees = {e.id: e for e in db.query(Employee).filter(Employee.id.in_(employee_ids)).all()} if employee_ids else {}
+        
+        # Bulk query last messages (one query per page instead of N queries)
+        from app.models.interaction import Message
+        last_messages_map = {}
+        for tid in ticket_ids:
+            last_msg = db.query(Message).filter(
+                Message.id_ticket == tid,
+                Message.is_deleted == False
+            ).order_by(Message.created_at.desc()).first()
+            last_messages_map[tid] = last_msg
+        
         conversations = []
         for ticket in tickets:
             last_message = None
-            messages, _ = service.get_chat_history(ticket.id_ticket, 1, 1)
-            if messages:
-                last_message = messages[0]
+            last_msg = last_messages_map.get(ticket.id_ticket)
+            if last_msg:
+                last_message = service._to_message_out(last_msg)
             
             unread_count = service.get_unread_count(ticket.id_ticket, current_user.id)
             
-            customer = db.query(Customer).filter(Customer.id == ticket.id_customer).first()
-            employee = None
-            if ticket.id_employee:
-                emp = db.query(Employee).filter(Employee.id == ticket.id_employee).first()
-                if emp:
-                    employee = emp
+            customer = customers.get(ticket.id_customer)
+            employee = employees.get(ticket.id_employee) if ticket.id_employee else None
             
             conv = ConversationOut(
                 id_ticket=ticket.id_ticket,
