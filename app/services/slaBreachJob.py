@@ -6,6 +6,7 @@ from app.repositories.ticketRepository import TicketRepository
 from app.repositories.employeeRepository import EmployeeRepository
 from app.schemas.notificationSchema import NotificationCreate
 from app.services.notificationService import NotificationService
+from app.core.constants import TicketStatusConstants
 from datetime import datetime
 import logging
 import uuid
@@ -37,7 +38,7 @@ class SLABreachJob:
         try:
             # Lấy tất cả ticket đang active (chưa resolved/closed)
             active_tickets = self.db.query(Ticket).filter(
-                Ticket.status.in_(["New", "In Progress", "Pending", "On Hold"])
+                Ticket.status.in_(TicketStatusConstants.ACTIVE_STATUSES)
             ).all()
             
             result["checked"] = len(active_tickets)

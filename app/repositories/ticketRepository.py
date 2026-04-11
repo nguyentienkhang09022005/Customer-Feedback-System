@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.models.ticket import Ticket, TicketCategory
 from app.models.human import Employee
+from app.core.constants import TicketStatusConstants
 from typing import List, Optional
 import uuid
 
@@ -35,11 +36,10 @@ class TicketRepository:
         ).all()
 
     def get_by_employee(self, employee_id: uuid.UUID) -> List[Ticket]:
-        active_statuses = ["New", "In Progress", "Pending", "On Hold"]
         return self.db.query(Ticket).filter(
             and_(
                 Ticket.id_employee == employee_id,
-                Ticket.status.in_(active_statuses)
+                Ticket.status.in_(TicketStatusConstants.ACTIVE_STATUSES)
             )
         ).all()
 
@@ -47,11 +47,10 @@ class TicketRepository:
         return self.db.query(Ticket).filter(Ticket.id_customer == customer_id).all()
 
     def get_active_ticket_count(self, employee_id: uuid.UUID) -> int:
-        active_statuses = ["New", "In Progress", "Pending", "On Hold"]
         return self.db.query(Ticket).filter(
             and_(
                 Ticket.id_employee == employee_id,
-                Ticket.status.in_(active_statuses)
+                Ticket.status.in_(TicketStatusConstants.ACTIVE_STATUSES)
             )
         ).count()
 
