@@ -7,37 +7,22 @@ from app.repositories.humanRepository import HumanRepository
 from app.models.ticket import Ticket
 from app.schemas.ticketSchema import TicketCreate, TicketUpdate, TicketAssign
 from app.services.loadBalancer import LoadBalancer
+from app.core.constants import TicketStatusConstants
 from typing import List, Optional
 import uuid
 from datetime import datetime, timedelta
 import logging
 
+from app.services.notificationService import NotificationService
+
 logger = logging.getLogger(__name__)
-
-# Rate limiting constants
-RATE_LIMIT_TICKETS = 5
-RATE_LIMIT_WINDOW_SECONDS = 3600  # 1 hour
-
-# Status transition rules - defines valid transitions from one status to another
-STATUS_TRANSITIONS = {
-    "New": ["In Progress", "Pending", "On Hold", "Cancelled"],
-    "In Progress": ["Pending", "On Hold", "Resolved", "Cancelled"],
-    "Pending": ["In Progress", "On Hold", "Resolved", "Cancelled"],
-    "On Hold": ["In Progress", "Pending", "Resolved", "Cancelled"],
-    "Resolved": ["Closed", "In Progress"],  # Can reopen to In Progress or close
-    "Closed": [],  # No direct transitions - must use reopen
-    "Cancelled": ["New"],  # Can uncancel back to New
-}
-
-# Valid ticket statuses
-VALID_STATUSES = ["New", "In Progress", "Pending", "On Hold", "Resolved", "Closed", "Cancelled"]
 
 
 def _validate_status_transition(current_status: str, new_status: str) -> bool:
     """Check if a status transition is valid"""
     if current_status == new_status:
         return True  # No change
-    allowed_transitions = STATUS_TRANSITIONS.get(current_status, [])
+    allowed_transitions = TicketStatusConstants.STATUS_TRANSITIONS.get(current_status, [])
     return new_status in allowed_transitions
 
 
@@ -189,7 +174,7 @@ class TicketService:
                 )
         
         # Validate new status value is valid
-        if "status" in update_data and update_data["status"] not in VALID_STATUSES:
+        if "status" in update_data and update_data["status"] not in TicketStatusConstants.VALID_STATUSES:
             raise HTTPException(status_code=400, detail=f"Trạng thái '{update_data['status']}' không hợp lệ!")
 
         if "severity" in update_data and update_data["severity"] != ticket.severity:
@@ -258,10 +243,10 @@ class TicketService:
             
             if current_count is None:
                 # First ticket in window
-                redis_service.set_with_expiry(key, "1", RATE_LIMIT_WINDOW_SECONDS)
+                redis_service.set_with_expiry(key, "1", TicketStatusConstants.RATE_LIMIT_WINDOW_SECONDS)
                 return True
             
-            if int(current_count) >= RATE_LIMIT_TICKETS:
+            if int(current_count) >= TicketStatusConstants.RATE_LIMIT_TICKETS:
                 return False
             
             # Increment counter

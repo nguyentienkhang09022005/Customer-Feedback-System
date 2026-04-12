@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from app.models.human import Employee, Human
 from app.models.ticket import Ticket
+from app.core.constants import TicketStatusConstants
 from typing import List, Optional
 import uuid
 
@@ -53,8 +54,6 @@ class EmployeeRepository:
 
     def get_available_employees_with_ticket_counts(self, dept_id: uuid.UUID):
         """Lấy danh sách employees kèm số ticket đang active trong 1 query"""
-        active_statuses = ["New", "In Progress", "Pending", "On Hold"]
-        
         results = self.db.query(
             Employee,
             func.coalesce(func.count(Ticket.id_ticket), 0).label('ticket_count')
@@ -62,7 +61,7 @@ class EmployeeRepository:
             Ticket,
             and_(
                 Ticket.id_employee == Employee.id_employee,
-                Ticket.status.in_(active_statuses)
+                Ticket.status.in_(TicketStatusConstants.ACTIVE_STATUSES)
             )
         ).filter(
             Employee.id_department == dept_id,
@@ -78,13 +77,11 @@ class EmployeeRepository:
         if not employees:
             return None
         
-        active_statuses = ["New", "In Progress", "Pending", "On Hold"]
-        
         for emp in employees:
             current_count = self.db.query(Ticket).filter(
                 and_(
                     Ticket.id_employee == emp.id_employee,
-                    Ticket.status.in_(active_statuses)
+                    Ticket.status.in_(TicketStatusConstants.ACTIVE_STATUSES)
                 )
             ).count()
             

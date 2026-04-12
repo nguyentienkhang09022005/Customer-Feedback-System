@@ -5,6 +5,7 @@ from app.repositories.ticketRepository import TicketRepository
 from app.repositories.employeeRepository import EmployeeRepository
 from app.schemas.notificationSchema import NotificationCreate
 from app.services.notificationService import NotificationService
+from app.core.constants import TicketStatusConstants
 import logging
 import uuid
 from typing import Optional

@@ -1,4 +1,48 @@
 from enum import Enum
+from typing import List
+
+
+class TicketStatusEnum(str, Enum):
+    NEW = "New"
+    IN_PROGRESS = "In Progress"
+    PENDING = "Pending"
+    ON_HOLD = "On Hold"
+    RESOLVED = "Resolved"
+    CLOSED = "Closed"
+    CANCELLED = "Cancelled"
+
+
+class TicketStatusConstants:
+    VALID_STATUSES: List[str] = [
+        "New",
+        "In Progress",
+        "Pending",
+        "On Hold",
+        "Resolved",
+        "Closed",
+        "Cancelled"
+    ]
+    
+    ACTIVE_STATUSES: List[str] = [
+        "New",
+        "In Progress",
+        "Pending",
+        "On Hold"
+    ]
+    
+    STATUS_TRANSITIONS: dict = {
+        "New": ["In Progress", "Pending", "On Hold", "Cancelled"],
+        "In Progress": ["Pending", "On Hold", "Resolved", "Cancelled"],
+        "Pending": ["In Progress", "On Hold", "Resolved", "Cancelled"],
+        "On Hold": ["In Progress", "Pending", "Resolved", "Cancelled"],
+        "Resolved": ["Closed", "In Progress"],
+        "Closed": [],
+        "Cancelled": ["New"],
+    }
+    
+    RATE_LIMIT_TICKETS: int = 5
+    RATE_LIMIT_WINDOW_SECONDS: int = 3600
+
 
 class HumanStatusEnum(str, Enum):
     ACTIVE = "Active"
