@@ -3,12 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 import socketio
 import os
 from app.api.v1 import roles, customerTypes, employees, customers, auth, user, ticketCategories, tickets, departments, \
-    faq, chat, audit, sla, evaluate, notification, cloudinary_signatures, department_assignments, ticketComments, ticketHistory
+    faq, chat, audit, sla, evaluate, notification, cloudinary_signatures, department_assignments, ticketComments, ticketHistory, \
+    templates
 from app.socketio.manager import sio
 
 app = FastAPI(title="Customer Feedback System")
 
-# Get allowed origins from environment or use defaults
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
 
 app.add_middleware(
@@ -27,6 +27,7 @@ app.include_router(employees.router, prefix="/api/v1")
 app.include_router(customers.router, prefix="/api/v1")
 app.include_router(ticketCategories.router, prefix="/api/v1")
 app.include_router(tickets.router, prefix="/api/v1")
+app.include_router(templates.router, prefix="/api/v1")
 app.include_router(ticketComments.router, prefix="/api/v1")
 app.include_router(ticketHistory.router, prefix="/api/v1")
 app.include_router(departments.router, prefix="/api/v1")

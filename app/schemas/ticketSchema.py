@@ -8,36 +8,42 @@ from app.schemas.paginationSchema import PaginationMeta
 
 class TicketCreate(BaseModel):
     title: str
-    description: Optional[str] = None
     severity: Optional[str] = None
-    id_category: UUID
 
 
 class TicketUpdate(BaseModel):
     title: Optional[str] = None
-    description: Optional[str] = None
     severity: Optional[str] = None
     status: Optional[str] = None
-    id_category: Optional[UUID] = None
 
 
 class TicketAssign(BaseModel):
     id_employee: UUID
 
 
+class TicketFromTemplateCreate(BaseModel):
+    title: str
+    severity: Optional[str] = None
+    id_template: UUID
+    custom_fields: Optional[dict] = None
+
+
 class TicketOut(BaseModel):
     id_ticket: UUID
     title: str
-    description: Optional[str]
+    custom_fields: Optional[dict] = None
     status: str
     severity: Optional[str]
     expired_date: Optional[datetime] = None
-    id_category: UUID
     id_employee: Optional[UUID]
     id_customer: UUID
+    id_template: Optional[UUID] = None
+    template_version: Optional[int] = None
+    is_deleted: bool = False
+    deleted_at: Optional[datetime] = None
     created_at: datetime
-    updated_at: datetime
-    category_name: Optional[str] = None
+    updated_at: Optional[datetime] = None
+    template_name: Optional[str] = None
 
     @computed_field
     @property
@@ -52,6 +58,8 @@ class TicketOut(BaseModel):
 
 class TicketDetailOut(TicketOut):
     assigned_employee: Optional[dict] = None
+    template_name: Optional[str] = None
+    template_fields_config: Optional[dict] = None
 
     class Config:
         from_attributes = True
@@ -66,7 +74,7 @@ class TicketClose(BaseModel):
 
 
 class TicketReopen(BaseModel):
-    reason: str  # Bắt buộc - lý do mở lại ticket
+    reason: str
 
 
 class TicketListOut(BaseModel):
