@@ -266,6 +266,7 @@ class TicketService:
             )
         
         ticket.status = "Resolved"
+        ticket.resolved_at = datetime.utcnow()
         
         if resolution_note:
             ticket.resolution_note = resolution_note
