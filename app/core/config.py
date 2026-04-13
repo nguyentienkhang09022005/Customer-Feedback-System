@@ -38,6 +38,14 @@ class Settings:
     REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
     REDIS_PASSWORD: Optional[str] = os.getenv("REDIS_PASSWORD", None)
     REDIS_ENABLED: bool = os.getenv("REDIS_ENABLED", "true").lower() == "true"
+
+    # Groq API Configuration (supports multiple keys for fallback)
+    GROQ_API_KEYS: List[str] = [k for k in [
+        os.getenv("GROQ_API_KEY_1"),
+        os.getenv("GROQ_API_KEY_2"),
+        os.getenv("GROQ_API_KEY_3"),
+    ] if k]
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
     
     # File Upload Configuration
     MAX_FILE_SIZE_MB: int = int(os.getenv("MAX_FILE_SIZE_MB", "10"))

@@ -4,7 +4,7 @@ import socketio
 import os
 from app.api.v1 import roles, customerTypes, employees, customers, auth, user, ticketCategories, tickets, departments, \
     faq, chat, audit, sla, evaluate, notification, cloudinary_signatures, department_assignments, ticketComments, ticketHistory, \
-    templates
+    templates, chatbot
 from app.socketio.manager import sio
 
 app = FastAPI(title="Customer Feedback System")
@@ -39,6 +39,7 @@ app.include_router(sla.router, prefix="/api/v1")
 app.include_router(evaluate.router, prefix="/api/v1")
 app.include_router(notification.router, prefix="/api/v1")
 app.include_router(department_assignments.router, prefix="/api/v1")
+app.include_router(chatbot.router, prefix="/api/v1")
 
 socket_app = socketio.ASGIApp(sio, app)
 app.mount("/socket.io", socket_app)

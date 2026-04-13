@@ -19,3 +19,4 @@ python-multipart
 python-socketio[asyncio]>=5.0.0
 
 redis
+httpx
