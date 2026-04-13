@@ -7,6 +7,7 @@ from app.services.departmentService import DepartmentService
 from app.schemas.departmentSchema import DepartmentCreate, DepartmentUpdate, DepartmentOut
 from app.core.response import APIResponse
 from app.api.dependencies import get_db, get_current_employee
+from app.services.chatbotService import ChatbotService
 
 router = APIRouter(prefix="/departments", tags=["Department Management"])
 
@@ -21,6 +22,7 @@ def get_departments(db: Session = Depends(get_db)):
 def create_department(data: DepartmentCreate, db: Session = Depends(get_db)):
     try:
         dept = DepartmentService(db).create_department(data)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=201, message="Tạo phòng ban thành công", data=dept)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
@@ -39,6 +41,7 @@ def get_department(dept_id: UUID, db: Session = Depends(get_db)):
 def update_department(dept_id: UUID, data: DepartmentUpdate, db: Session = Depends(get_db)):
     try:
         dept = DepartmentService(db).update_department(dept_id, data)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=200, message="Cập nhật thành công", data=dept)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
@@ -48,6 +51,7 @@ def update_department(dept_id: UUID, data: DepartmentUpdate, db: Session = Depen
 def delete_department(dept_id: UUID, db: Session = Depends(get_db)):
     try:
         DepartmentService(db).delete_department(dept_id)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=200, message="Xóa phòng ban thành công")
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)

@@ -12,6 +12,7 @@ from app.schemas.ticketCategorySchema import (
 )
 from app.core.response import APIResponse
 from app.api.dependencies import get_db, get_current_admin, get_current_employee, get_current_user
+from app.services.chatbotService import ChatbotService
 
 router = APIRouter(prefix="/templates", tags=["Template Management"])
 
@@ -64,6 +65,7 @@ def create_template(data: TicketTemplateCreate, db: Session = Depends(get_db), c
         author_id = current_user.id if hasattr(current_user, 'id') else None
         service = TicketTemplateService(db)
         template = service.create_template(data, author_id)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=201, message="Tạo template thành công", data=template)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
@@ -75,6 +77,7 @@ def update_template(template_id: UUID, data: TicketTemplateUpdate, db: Session =
         author_id = current_user.id if hasattr(current_user, 'id') else None
         service = TicketTemplateService(db)
         template = service.update_template(template_id, data, author_id)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=200, message="Cập nhật template thành công", data=template)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
@@ -85,6 +88,7 @@ def delete_template(template_id: UUID, db: Session = Depends(get_db)):
     try:
         service = TicketTemplateService(db)
         service.delete_template(template_id)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=200, message="Xóa template thành công")
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
@@ -95,6 +99,7 @@ def activate_template(template_id: UUID, db: Session = Depends(get_db)):
     try:
         service = TicketTemplateService(db)
         template = service.activate_template(template_id)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=200, message="Kích hoạt template thành công", data=template)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)

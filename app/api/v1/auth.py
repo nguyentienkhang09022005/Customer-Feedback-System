@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+import asyncio
 from app.api.dependencies import get_db, get_current_user
 from app.schemas.authSchema import LoginRequest, TokenResponse, RefreshTokenRequest, RegisterRequest, MessageResponse, VerifyOTPRequest, ForgotPasswordRequest, ResetPasswordRequest, LogoutRequest
 from app.services.authService import AuthService
+from app.services.chatbotService import ChatbotService
 from app.models.human import Human
 from app.api.dependencies import security
 
@@ -92,6 +94,12 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         )
 
     access_token, refresh_token = service.create_tokens(user)
+
+    # Preload customer data to Redis in background (non-blocking)
+    asyncio.create_task(
+        ChatbotService._preload_customer_data(user.id_customer)
+    )
+
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
@@ -188,5 +196,8 @@ def logout(
                         logger.error(f"Failed to blacklist refresh token {refresh_jti} for user {current_user.id}")
                         # Don't fail the whole logout if refresh token blacklist fails
                         # Access token is already blacklisted
-    
+
+    # Invalidate chatbot cache for this customer
+    ChatbotService._invalidate_customer_cache(current_user.id_customer)
+
     return MessageResponse(message="Đăng xuất thành công!")
