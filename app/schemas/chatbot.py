@@ -38,10 +38,5 @@ class ChatHistoryResponse(BaseModel):
     total_messages: int
 
 
-class SessionResponse(BaseModel):
-    session: Optional[ChatSessionSchema] = None
-    message: str = "Session not found" if session is None else "Session retrieved successfully" if session.messages else "Empty session" if session else ""
-
-
 class DeleteSessionResponse(BaseModel):
     message: str

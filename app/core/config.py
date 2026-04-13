@@ -32,12 +32,12 @@ class Settings:
     # SendGrid-specific (only used when EMAIL_PROVIDER="sendgrid")
     SENDGRID_API_KEY: str = os.getenv("SEND_GRID_API_KEY", "")
     
-    # Redis Configuration
-    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
-    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
-    REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
-    REDIS_PASSWORD: Optional[str] = os.getenv("REDIS_PASSWORD", None)
     REDIS_ENABLED: bool = os.getenv("REDIS_ENABLED", "true").lower() == "true"
+
+    # Upstash Redis Cloud Configuration
+    REDIS_UPSTASH_MODE: bool = os.getenv("REDIS_UPSTASH_MODE", "false").lower() == "true"
+    UPSTASH_REDIS_REST_URL: Optional[str] = os.getenv("UPSTASH_REDIS_REST_URL", None)
+    UPSTASH_REDIS_REST_TOKEN: Optional[str] = os.getenv("UPSTASH_REDIS_REST_TOKEN", None)
 
     # Groq API Configuration (supports multiple keys for fallback)
     GROQ_API_KEYS: List[str] = [k for k in [

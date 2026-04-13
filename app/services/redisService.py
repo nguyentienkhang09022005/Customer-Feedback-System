@@ -5,6 +5,13 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+try:
+    from upstash_redis import Redis as UpstashRedis
+    UPSTASH_AVAILABLE = True
+except ImportError:
+    UPSTASH_AVAILABLE = False
+    UpstashRedis = None
+
 
 class RedisService:
     """
@@ -21,10 +28,6 @@ class RedisService:
         return cls._instance
     
     def __init__(self):
-        self.host = settings.REDIS_HOST
-        self.port = settings.REDIS_PORT
-        self.db = settings.REDIS_DB
-        self.password = settings.REDIS_PASSWORD
         self.enabled = settings.REDIS_ENABLED
         self._connect()
     
@@ -33,13 +36,45 @@ class RedisService:
         if not self.enabled:
             logger.warning("⚠️ Redis is disabled")
             return
-        
+
+        if settings.REDIS_UPSTASH_MODE and UPSTASH_AVAILABLE:
+            self._connect_upstash()
+        else:
+            self._connect_local()
+
+    def _connect_upstash(self):
+        """Connect to Upstash Redis Cloud"""
         try:
+            if not settings.UPSTASH_REDIS_REST_URL or not settings.UPSTASH_REDIS_REST_TOKEN:
+                logger.error("❌ Upstash mode enabled but credentials not found")
+                self._client = None
+                return
+
+            self._client = UpstashRedis(
+                url=settings.UPSTASH_REDIS_REST_URL,
+                token=settings.UPSTASH_REDIS_REST_TOKEN
+            )
+            # Test connection
+            self._client.ping()
+            logger.info("✅ Upstash Redis connected")
+        except Exception as e:
+            logger.error(f"❌ Upstash Redis connection failed: {e}")
+            self._client = None
+
+    def _connect_local(self):
+        """Connect to local Redis (legacy)"""
+        try:
+            # Check if local Redis settings exist
+            if not hasattr(settings, 'REDIS_HOST'):
+                logger.warning("⚠️ Local Redis settings not found. Install upstash-redis and set REDIS_UPSTASH_MODE=true")
+                self._client = None
+                return
+
             self._client = redis.Redis(
-                host=self.host,
-                port=self.port,
-                db=self.db,
-                password=self.password,
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                db=settings.REDIS_DB,
+                password=settings.REDIS_PASSWORD,
                 decode_responses=True,
                 socket_connect_timeout=5,
                 socket_timeout=5,
@@ -47,7 +82,7 @@ class RedisService:
             )
             # Test connection
             self._client.ping()
-            logger.info(f"✅ Redis connected to {self.host}:{self.port}")
+            logger.info(f"✅ Redis connected to {settings.REDIS_HOST}:{settings.REDIS_PORT}")
         except redis.ConnectionError as e:
             logger.error(f"❌ Redis connection failed: {e}")
             self._client = None

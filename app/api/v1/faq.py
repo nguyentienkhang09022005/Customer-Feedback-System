@@ -9,6 +9,7 @@ from app.schemas.paginationSchema import PaginationMeta
 from app.core.response import APIResponse
 from app.api.dependencies import get_db, get_current_employee
 from app.models.human import Employee
+from app.services.chatbotService import ChatbotService
 
 router = APIRouter(prefix="/faqs", tags=["FAQ Management"])
 
@@ -20,6 +21,7 @@ def create_faq(
 ):
     try:
         article = FAQService(db).create_article(data, current_employee.id)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=201, message="Tạo bài viết về câu hỏi thành công!", data=article)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
@@ -94,6 +96,7 @@ def update_faq(
 ):
     try:
         article = FAQService(db).update_article(article_id, data)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=200, message="Cập nhật thành công!", data=article)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
@@ -105,6 +108,7 @@ def delete_faq(
 ):
     try:
         FAQService(db).delete_article(article_id)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=200, message="Xóa bài viết về câu hỏi thành công!")
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)

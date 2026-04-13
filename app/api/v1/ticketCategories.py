@@ -14,6 +14,7 @@ from app.schemas.ticketCategorySchema import (
 )
 from app.core.response import APIResponse
 from app.api.dependencies import get_db, get_current_employee, get_current_user, get_current_admin
+from app.services.chatbotService import ChatbotService
 
 router = APIRouter(prefix="/ticket-categories", tags=["Ticket Categories Management"])
 
@@ -32,6 +33,7 @@ def get_categories(active_only: bool = Query(True), db: Session = Depends(get_db
 def create_category(data: TicketCategoryCreate, db: Session = Depends(get_db)):
     try:
         category = TicketCategoryService(db).create_category(data)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=201, message="Tạo danh mục thành công", data=category)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
@@ -63,6 +65,7 @@ def get_category_templates(cat_id: UUID, db: Session = Depends(get_db)):
 def update_category(cat_id: UUID, data: TicketCategoryUpdate, db: Session = Depends(get_db)):
     try:
         category = TicketCategoryService(db).update_category(str(cat_id), data)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=200, message="Cập nhật thành công", data=category)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
@@ -76,6 +79,7 @@ def delete_category(cat_id: UUID, hard_delete: bool = Query(False), db: Session 
             service.hard_delete_category(str(cat_id))
         else:
             service.delete_category(str(cat_id))
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(status=True, code=200, message="Xóa danh mục thành công")
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)

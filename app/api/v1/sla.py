@@ -7,6 +7,7 @@ from app.services.slaService import SLAService
 from app.schemas.slaSchema import SLACreate, SLAUpdate, SLAOut
 from app.core.response import APIResponse
 from app.api.dependencies import get_db, get_current_employee, get_current_admin
+from app.services.chatbotService import ChatbotService
 
 router = APIRouter(prefix="/sla-policies", tags=["SLA Policies"])
 
@@ -31,6 +32,7 @@ def create_sla_policy(
     try:
         service = SLAService(db)
         policy = service.create_policy(data)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(
             status=True,
             code=201,
@@ -50,6 +52,7 @@ def update_sla_policy(
     try:
         service = SLAService(db)
         policy = service.update_policy(policy_id, data)
+        ChatbotService.invalidate_public_data_cache()
         return APIResponse(
             status=True,
             code=200,
@@ -68,6 +71,7 @@ def toggle_sla_policy(
     try:
         service = SLAService(db)
         policy = service.toggle_policy(policy_id)
+        ChatbotService.invalidate_public_data_cache()
 
         status_msg = "đã BẬT" if policy.is_active else "đã TẮT"
 

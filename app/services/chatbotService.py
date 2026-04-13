@@ -12,9 +12,12 @@ from app.models.human import Customer
 from app.models.ticket import Ticket
 from app.schemas.chatbot import ChatMessageSchema, ChatSessionSchema
 from app.services.groqService import GroqService
+from app.services.redisService import redis_service
+from app.core.config import settings
 from typing import List, Dict, Any
 import uuid
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +40,14 @@ You CANNOT:
 Only discuss the current customer's own data when they specifically ask about it.
 If you don't know something, say you don't know rather than making up information.
 """
+
+# Cache key and TTL for chatbot public data
+CHATBOT_PUBLIC_DATA_CACHE_KEY = "chatbot:public_data"
+CHATBOT_PUBLIC_DATA_CACHE_TTL = 600  # 10 minutes
+
+# Cache key and TTL for customer-specific data (per customer)
+CHATBOT_CUSTOMER_PROFILE_KEY = "chatbot:customer:{customer_id}:profile"
+CHATBOT_CUSTOMER_TICKETS_KEY = "chatbot:customer:{customer_id}:tickets"
 
 
 class ChatbotService:
@@ -82,8 +93,97 @@ class ChatbotService:
             for t in tickets
         ]
 
+    def _get_customer_data_cached(self, customer_id: uuid.UUID) -> Dict[str, Any]:
+        """Get customer's profile data with Redis caching."""
+        cache_key = CHATBOT_CUSTOMER_PROFILE_KEY.format(customer_id=str(customer_id))
+
+        # Try cache first
+        cached = redis_service.get(cache_key)
+        if cached:
+            try:
+                return json.loads(cached)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("Failed to decode cached customer profile, fetching from DB")
+
+        # Fetch from DB
+        data = self._get_customer_data(customer_id)
+
+        # Cache with TTL = token expiry
+        ttl = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        redis_service.set_with_expiry(cache_key, json.dumps(data), ttl)
+
+        return data
+
+    def _get_customer_tickets_cached(self, customer_id: uuid.UUID) -> List[Dict[str, Any]]:
+        """Get customer's tickets with Redis caching."""
+        cache_key = CHATBOT_CUSTOMER_TICKETS_KEY.format(customer_id=str(customer_id))
+
+        # Try cache first
+        cached = redis_service.get(cache_key)
+        if cached:
+            try:
+                return json.loads(cached)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("Failed to decode cached customer tickets, fetching from DB")
+
+        # Fetch from DB
+        data = self._get_customer_tickets(customer_id)
+
+        # Cache with TTL = token expiry
+        ttl = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        redis_service.set_with_expiry(cache_key, json.dumps(data), ttl)
+
+        return data
+
+    @staticmethod
+    def _preload_customer_data(customer_id: uuid.UUID) -> None:
+        """Preload customer data to Redis cache. Called as background task after login."""
+        from app.db.session import SessionLocal
+
+        db = SessionLocal()
+        try:
+            service = ChatbotService(db)
+
+            # Get and cache profile
+            profile = service._get_customer_data(customer_id)
+            profile_key = CHATBOT_CUSTOMER_PROFILE_KEY.format(customer_id=str(customer_id))
+            ttl = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            redis_service.set_with_expiry(profile_key, json.dumps(profile), ttl)
+            logger.info(f"Preloaded profile cache for customer {customer_id}")
+
+            # Get and cache tickets
+            tickets = service._get_customer_tickets(customer_id)
+            tickets_key = CHATBOT_CUSTOMER_TICKETS_KEY.format(customer_id=str(customer_id))
+            redis_service.set_with_expiry(tickets_key, json.dumps(tickets), ttl)
+            logger.info(f"Preloaded tickets cache for customer {customer_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to preload customer data for {customer_id}: {str(e)}")
+        finally:
+            db.close()
+
+    @staticmethod
+    def _invalidate_customer_cache(customer_id: uuid.UUID) -> bool:
+        """Invalidate customer cache on logout."""
+        profile_key = CHATBOT_CUSTOMER_PROFILE_KEY.format(customer_id=str(customer_id))
+        tickets_key = CHATBOT_CUSTOMER_TICKETS_KEY.format(customer_id=str(customer_id))
+
+        redis_service.delete(profile_key)
+        redis_service.delete(tickets_key)
+        logger.info(f"Invalidated cache for customer {customer_id}")
+        return True
+
     def _get_public_data(self) -> Dict[str, Any]:
-        """Get all public data for context."""
+        """Get all public data for context with Redis caching."""
+        # Try to get from cache first
+        cached = redis_service.get(CHATBOT_PUBLIC_DATA_CACHE_KEY)
+        if cached:
+            try:
+                return json.loads(cached)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("Failed to decode cached public data, fetching from DB")
+
+        # Fetch from database
         faqs = self.faq_repo.get_public_articles()
         departments = self.dept_repo.get_active_all()
         customer_types = self.customer_type_repo.get_all()
@@ -91,7 +191,7 @@ class ChatbotService:
         templates = self.template_repo.get_active_templates() if hasattr(self.template_repo, 'get_active_templates') else []
         sla_policies = self.sla_repo.get_active_all() if hasattr(self.sla_repo, 'get_active_all') else []
 
-        return {
+        result = {
             "faqs": [
                 {"title": f.title, "content": f.content}
                 for f in faqs
@@ -118,10 +218,19 @@ class ChatbotService:
             ] if sla_policies else [],
         }
 
+        # Cache the result
+        redis_service.set_with_expiry(
+            CHATBOT_PUBLIC_DATA_CACHE_KEY,
+            json.dumps(result),
+            CHATBOT_PUBLIC_DATA_CACHE_TTL
+        )
+
+        return result
+
     def _build_context(self, customer_id: uuid.UUID) -> str:
         """Build context string from customer's data and public data."""
-        customer_data = self._get_customer_data(customer_id)
-        customer_tickets = self._get_customer_tickets(customer_id)
+        customer_data = self._get_customer_data_cached(customer_id)
+        customer_tickets = self._get_customer_tickets_cached(customer_id)
         public_data = self._get_public_data()
 
         context = "=== CUSTOMER PROFILE ===\n"
@@ -183,8 +292,8 @@ class ChatbotService:
             "content": f"=== CONTEXT (Only use this information about the customer) ===\n{context}"
         })
 
-        # Add chat history
-        chat_messages = self.message_repo.get_by_session_id(session.id_session)
+        # Add chat history (last 10 messages only)
+        chat_messages = self.message_repo.get_by_session_id(session.id_session)[-10:]
         for msg in chat_messages:
             messages.append({
                 "role": msg.role,
@@ -229,33 +338,12 @@ class ChatbotService:
             created_at=ai_msg.created_at
         )
 
-    def get_history(self, customer_id: uuid.UUID) -> ChatSessionSchema:
-        """Get customer's chat session with full history."""
+    def get_session(self, customer_id: uuid.UUID) -> ChatSessionSchema:
+        """Get existing session. Raises 404 if not found."""
         session = self.session_repo.get_by_customer_id(customer_id)
         if not session:
             raise HTTPException(status_code=404, detail="Chat session not found")
 
-        messages = self.message_repo.get_by_session_id(session.id_session)
-
-        return ChatSessionSchema(
-            id_session=session.id_session,
-            customer_id=session.customer_id,
-            messages=[
-                ChatMessageSchema(
-                    id_message=m.id_message,
-                    role=m.role,
-                    content=m.content,
-                    created_at=m.created_at
-                )
-                for m in messages
-            ],
-            created_at=session.created_at,
-            updated_at=session.updated_at
-        )
-
-    def get_or_create_session(self, customer_id: uuid.UUID) -> ChatSessionSchema:
-        """Get existing session or create new one."""
-        session = self.session_repo.get_or_create(customer_id)
         messages = self.message_repo.get_by_session_id(session.id_session)
 
         return ChatSessionSchema(
@@ -280,3 +368,8 @@ class ChatbotService:
         if not success:
             raise HTTPException(status_code=404, detail="Chat session not found")
         return True
+
+    @staticmethod
+    def invalidate_public_data_cache() -> bool:
+        """Invalidate the cached public data. Call this when admin updates FAQ, Department, etc."""
+        return redis_service.delete(CHATBOT_PUBLIC_DATA_CACHE_KEY)

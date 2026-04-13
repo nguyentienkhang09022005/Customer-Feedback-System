@@ -8,6 +8,13 @@ import uuid
 import redis
 from app.core.config import settings
 
+try:
+    from upstash_redis import Redis as UpstashRedis
+    UPSTASH_AVAILABLE = True
+except ImportError:
+    UPSTASH_AVAILABLE = False
+    UpstashRedis = None
+
 
 class LoadBalancer:
     def __init__(self, db: Session):
@@ -18,35 +25,50 @@ class LoadBalancer:
         self._redis_client = None
     
     @property
-    def redis_client(self) -> redis.Redis:
+    def redis_client(self):
         """Lazy initialization of Redis client"""
         if self._redis_client is None:
-            self._redis_client = redis.Redis(
-                host=settings.REDIS_HOST,
-                port=settings.REDIS_PORT,
-                db=settings.REDIS_DB,
-                password=settings.REDIS_PASSWORD,
-                decode_responses=True,
-                socket_connect_timeout=5,
-                socket_timeout=5
-            )
+            if settings.REDIS_UPSTASH_MODE and UPSTASH_AVAILABLE:
+                self._redis_client = UpstashRedis(
+                    url=settings.UPSTASH_REDIS_REST_URL,
+                    token=settings.UPSTASH_REDIS_REST_TOKEN
+                )
+            elif hasattr(settings, 'REDIS_HOST'):
+                # Fallback to local Redis if settings exist
+                self._redis_client = redis.Redis(
+                    host=settings.REDIS_HOST,
+                    port=settings.REDIS_PORT,
+                    db=settings.REDIS_DB,
+                    password=settings.REDIS_PASSWORD,
+                    decode_responses=True,
+                    socket_connect_timeout=5,
+                    socket_timeout=5
+                )
+            else:
+                raise RuntimeError("Redis not configured. Set REDIS_UPSTASH_MODE=true with Upstash credentials, or configure local Redis settings.")
         return self._redis_client
-    
+
     @contextmanager
     def _acquire_department_lock(self, dept_id: uuid.UUID, timeout: int = 10):
-        """Acquire a distributed lock for department assignment"""
+        """Acquire a distributed lock for department assignment using SET NX"""
         lock_key = f"lock:dept_assignment:{dept_id}"
-        lock = self.redis_client.lock(lock_key, timeout=timeout)
-        acquired = lock.acquire(blocking=True, blocking_timeout=5)
+        lock_value = str(uuid.uuid4())  # Unique value to ensure safe release
+
         try:
-            yield acquired
-        finally:
+            # Use SET NX (set if not exists) with expiry
+            acquired = self.redis_client.set(lock_key, lock_value, nx=True, ex=timeout)
             if acquired:
                 try:
-                    lock.release()
-                except redis.redis.exceptions.LockError:
-                    # Lock may have expired or already released
-                    pass
+                    yield True
+                finally:
+                    # Only release if we still own the lock (compare-and-delete)
+                    current_value = self.redis_client.get(lock_key)
+                    if current_value == lock_value:
+                        self.redis_client.delete(lock_key)
+            else:
+                yield False
+        except Exception:
+            yield False
     
     def get_best_employee_for_department(self, dept_id: uuid.UUID) -> Optional[Employee]:
         """Get best employee for department (read-only, no lock)"""

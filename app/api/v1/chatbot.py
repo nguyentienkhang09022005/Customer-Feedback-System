@@ -5,7 +5,6 @@ from app.schemas.chatbot import (
     SendMessageRequest,
     SendMessageResponse,
     ChatHistoryResponse,
-    SessionResponse,
     DeleteSessionResponse,
 )
 from app.core.response import APIResponse
@@ -35,15 +34,15 @@ def send_message(
         return APIResponse(status=False, code=e.status_code, message=e.detail)
 
 
-@router.get("/history", response_model=APIResponse[ChatHistoryResponse])
-def get_history(
+@router.get("/session", response_model=APIResponse[ChatHistoryResponse])
+def get_session(
     current_customer: Customer = Depends(get_current_customer),
     db: Session = Depends(get_db)
 ):
-    """Get customer's chat history."""
+    """Get customer's chat session. Returns 404 if no session exists."""
     try:
         service = ChatbotService(db)
-        session = service.get_history(current_customer.id_customer)
+        session = service.get_session(current_customer.id_customer)
         return APIResponse(
             status=True,
             code=200,
@@ -52,25 +51,6 @@ def get_history(
                 session=session,
                 total_messages=len(session.messages)
             )
-        )
-    except HTTPException as e:
-        return APIResponse(status=False, code=e.status_code, message=e.detail)
-
-
-@router.get("/session", response_model=APIResponse[SessionResponse])
-def get_or_create_session(
-    current_customer: Customer = Depends(get_current_customer),
-    db: Session = Depends(get_db)
-):
-    """Get customer's chat session."""
-    try:
-        service = ChatbotService(db)
-        session = service.get_or_create_session(current_customer.id_customer)
-        return APIResponse(
-            status=True,
-            code=200,
-            message="Session retrieved successfully" if session.messages else "Empty session",
-            data=SessionResponse(session=session)
         )
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
