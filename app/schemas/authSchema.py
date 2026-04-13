@@ -14,8 +14,7 @@ class RegisterRequest(BaseModel):
     last_name: str
     phone: Optional[str] = None
     address: Optional[str] = None
-    timezone: str = "Asia/Ho_Chi_Minh"
-    customer_type: str
+    timezone: str = "Asia/Ho_Chi_Minh" 
 
 class TokenResponse(BaseModel):
     access_token: str

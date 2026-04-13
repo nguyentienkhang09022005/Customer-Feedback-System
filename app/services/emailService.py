@@ -11,18 +11,18 @@ logger = logging.getLogger(__name__)
 
 class EmailService:
     """
-    Gmail SMTP Email Service
+    Email Service supporting Gmail SMTP and SendGrid SMTP
     Uses STARTTLS on port 587 (recommended) or SSL on port 465
     """
-    
+
     _instance: Optional['EmailService'] = None
     _smtp: Optional[smtplib.SMTP] = None
-    
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
-    
+
     def __init__(self):
         self.host = settings.SMTP_HOST
         self.port = settings.SMTP_PORT
@@ -30,29 +30,60 @@ class EmailService:
         self.password = settings.SMTP_PASSWORD
         self.from_name = settings.SMTP_FROM_NAME
         self.use_tls = settings.SMTP_USE_TLS
-    
+        self.email_provider = settings.EMAIL_PROVIDER
+        self.sendgrid_api_key = settings.SENDGRID_API_KEY
+
     def _connect_smtp(self) -> smtplib.SMTP:
-        """Establish SMTP connection with TLS"""
+        """Establish SMTP connection based on email provider"""
+        if self.email_provider == "sendgrid":
+            return self._connect_sendgrid()
+        else:
+            return self._connect_gmail()
+
+    def _connect_gmail(self) -> smtplib.SMTP:
+        """Connect to Gmail SMTP"""
         try:
             smtp = smtplib.SMTP(self.host, self.port, timeout=30)
             smtp.ehlo()
-            
+
             if self.use_tls:
                 smtp.starttls(context=ssl.create_default_context())
                 smtp.ehlo()
-            
+
             smtp.login(self.user, self.password)
-            logger.info(f"✅ SMTP connected to {self.host}:{self.port}")
+            logger.info(f"✅ Gmail SMTP connected to {self.host}:{self.port}")
             return smtp
-            
+
         except smtplib.SMTPAuthenticationError:
-            logger.error("❌ SMTP authentication failed - check credentials")
+            logger.error("❌ Gmail SMTP authentication failed - check credentials")
             raise
         except smtplib.SMTPConnectError:
-            logger.error(f"❌ Failed to connect to SMTP server {self.host}:{self.port}")
+            logger.error(f"❌ Failed to connect to Gmail SMTP {self.host}:{self.port}")
             raise
         except Exception as e:
-            logger.error(f"❌ SMTP connection error: {e}")
+            logger.error(f"❌ Gmail SMTP connection error: {e}")
+            raise
+
+    def _connect_sendgrid(self) -> smtplib.SMTP:
+        """Connect to SendGrid SMTP"""
+        try:
+            smtp = smtplib.SMTP("smtp.sendgrid.net", 587, timeout=30)
+            smtp.ehlo()
+            smtp.starttls(context=ssl.create_default_context())
+            smtp.ehlo()
+            # SendGrid username is always "apikey"; password is the SG.* API key
+            smtp.login("apikey", self.sendgrid_api_key)
+            logger.info("✅ SendGrid SMTP connected")
+            return smtp
+
+        except smtplib.SMTPAuthenticationError:
+            logger.error("❌ SendGrid authentication failed - check SENDGRID_API_KEY")
+            raise
+        except smtplib.SMTPConnectError:
+            logger.error("❌ Failed to connect to SendGrid SMTP")
+            raise
+        except Exception as e:
+            logger.error(f"❌ SendGrid SMTP connection error: {e}")
             raise
     
     def _disconnect(self):
@@ -110,10 +141,17 @@ class EmailService:
         Returns:
             bool: True if sent successfully
         """
-        if not self.user or not self.password:
-            logger.error("❌ SMTP credentials not configured")
+        if not self.user:
+            logger.error("❌ SMTP user (from email) not configured")
             return False
-        
+
+        if self.email_provider == "sendgrid" and not self.sendgrid_api_key:
+            logger.error("❌ SENDGRID_API_KEY not configured")
+            return False
+        elif self.email_provider != "sendgrid" and not self.password:
+            logger.error("❌ SMTP password not configured")
+            return False
+
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = f"{self.from_name} <{self.user}>"

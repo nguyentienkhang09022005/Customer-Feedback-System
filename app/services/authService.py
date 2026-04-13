@@ -26,14 +26,7 @@ class AuthService:
         if self.customer_repo.check_human_exists(data.email, data.username, data.phone):
             return False
 
-        return OTPService.generate_and_store_otp(data.email, data)
-
-    def verify_otp_and_activate(self, email: str, otp_code: str) -> Optional[Customer]:
-        data: RegisterRequest = OTPService.verify_and_get_data(email, otp_code)
-
-        if not data:
-            return None
-
+        # Create customer with PENDING status (awaiting email verification)
         new_customer = Customer(
             username=data.username,
             email=data.email,
@@ -43,12 +36,31 @@ class AuthService:
             phone=data.phone or "",
             address=data.address or "",
             timezone=data.timezone,
-            customer_type=data.customer_type,
-            status=HumanStatusEnum.ACTIVE,
+            status=HumanStatusEnum.PENDING,
             customer_code=self._generate_customer_code(),
             membership_tier=MembershipTierEnum.STANDARD
         )
-        return self.customer_repo.create(new_customer)
+        self.customer_repo.create(new_customer)
+
+        # Generate and store OTP for email verification
+        return OTPService.generate_and_store_otp(data.email)
+
+    def verify_otp_and_activate(self, email: str, otp_code: str) -> Optional[Customer]:
+        # Verify OTP first
+        if not OTPService.verify_otp_code(email, otp_code):
+            return None
+
+        # Find PENDING customer by email and activate
+        customer = self.repo.get_by_email(email)
+        if not customer or customer.status != HumanStatusEnum.PENDING:
+            return None
+
+        # Activate customer
+        customer.status = HumanStatusEnum.ACTIVE
+        self.db.commit()
+        self.db.refresh(customer)
+
+        return customer
 
     def authenticate_user(self, username: str, password: str) -> Optional[Human]:
         user = self.repo.get_by_username(username)

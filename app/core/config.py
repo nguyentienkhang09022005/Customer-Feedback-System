@@ -17,6 +17,10 @@ class Settings:
     
     CLOUDINARY_URL: str = os.getenv("CLOUDINARY_LINK", "")
     
+    # Email Provider Configuration
+    # Set to "sendgrid" to use SendGrid SMTP; anything else uses Gmail
+    EMAIL_PROVIDER: str = os.getenv("EMAIL_PROVIDER", "gmail").lower()
+
     # Gmail SMTP Configuration
     SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
@@ -24,6 +28,9 @@ class Settings:
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
     SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "Customer Feedback System")
     SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+
+    # SendGrid-specific (only used when EMAIL_PROVIDER="sendgrid")
+    SENDGRID_API_KEY: str = os.getenv("SEND_GRID_API_KEY", "")
     
     # Redis Configuration
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
