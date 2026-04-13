@@ -60,7 +60,7 @@ class Customer(Human):
     __tablename__ = "customers"
     id_customer = Column(UUID(as_uuid=True), ForeignKey("humans.id", ondelete="CASCADE"), primary_key=True)
     customer_code = Column(String(20), unique=True)
-    membership_tier = Column(String(20))
+    membership_tier = Column(String(20), default="Starter")
     timezone = Column(String(50))
 
     customer_type = Column(String(50), ForeignKey("customer_type.type_name", ondelete="SET NULL"))

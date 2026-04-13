@@ -68,13 +68,14 @@ class OTPService:
         return redis.delete(key)
 
     @staticmethod
-    def generate_and_store_otp(email: str, payload_data: Any) -> bool:
+    def generate_and_store_otp(email: str, payload_data: Any = None) -> bool:
+        """Generate OTP and store in Redis for email verification"""
         otp_code = ''.join(random.choices(string.digits, k=6))
-        
-        # Store in Redis instead of in-memory dict
+
+        # Store in Redis with 5-min TTL
         stored = OTPService._store_otp(email, otp_code, payload_data, "verification")
-        
-        # Send email (do not fall back to console)
+
+        # Send email
         OTPService._send_otp_email(email, otp_code)
         return stored
     
@@ -109,7 +110,27 @@ class OTPService:
         return True
 
     @staticmethod
+    def verify_otp_code(email: str, otp_code: str) -> bool:
+        """Verify OTP code only (for new registration flow)"""
+        cache_entry = OTPService._get_otp_data(email)
+
+        if not cache_entry:
+            return False
+
+        if cache_entry["otp"] != otp_code:
+            return False
+
+        # Check if this OTP was for registration (not password reset)
+        if cache_entry.get("type") == "password_reset":
+            return False
+
+        # Delete OTP after successful verification (one-time use)
+        OTPService._delete_otp(email)
+        return True
+
+    @staticmethod
     def verify_and_get_data(email: str, otp_code: str) -> Optional[Any]:
+        """Verify OTP and return stored data (legacy flow for backward compatibility)"""
         cache_entry = OTPService._get_otp_data(email)
 
         if not cache_entry:

@@ -48,6 +48,7 @@ class HumanStatusEnum(str, Enum):
     ACTIVE = "Active"
     INACTIVE = "Inactive"
     BANNED = "Banned"
+    PENDING = "Pending"  # Awaiting email verification
 
 class MembershipTierEnum(str, Enum):
     STANDARD = "Standard"
