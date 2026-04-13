@@ -23,9 +23,9 @@ class TicketHistoryService:
             action=TicketAction.CREATED,
             new_value={
                 "title": ticket.title,
-                "description": ticket.description,
+                "custom_fields": ticket.custom_fields,
                 "severity": ticket.severity,
-                "category": str(ticket.id_category)
+                "template_id": str(ticket.id_template) if ticket.id_template else None
             }
         )
         return self.repo.create(history)

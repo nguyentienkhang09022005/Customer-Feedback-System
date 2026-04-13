@@ -1,53 +1,52 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
-from app.models.ticket import Ticket, TicketCategory
+from app.models.ticket import Ticket
 from app.models.human import Employee
 from app.core.constants import TicketStatusConstants
 from typing import List, Optional
 import uuid
+from datetime import datetime
 
 
 class TicketRepository:
     def __init__(self, db: Session):
         self.db = db
 
+    def _base_query(self):
+        return self.db.query(Ticket).filter(Ticket.is_deleted == False).options(
+            joinedload(Ticket.template)
+        )
+
     def get_all(self) -> List[Ticket]:
-        return self.db.query(Ticket).all()
+        return self._base_query().all()
 
     def get_by_id(self, ticket_id: uuid.UUID) -> Optional[Ticket]:
-        return self.db.query(Ticket).filter(Ticket.id_ticket == ticket_id).first()
+        return self._base_query().filter(Ticket.id_ticket == ticket_id).first()
 
     def get_unassigned(self) -> List[Ticket]:
-        return self.db.query(Ticket).filter(Ticket.id_employee == None).all()
+        return self._base_query().filter(Ticket.id_employee == None).all()
 
     def get_by_department(self, dept_id: uuid.UUID) -> List[Ticket]:
-        return self.db.query(Ticket).join(
+        return self._base_query().join(
             Employee, Ticket.id_employee == Employee.id_employee
         ).filter(Employee.id_department == dept_id).all()
 
-    def get_unassigned_by_department(self, dept_id: uuid.UUID) -> List[Ticket]:
-        return self.db.query(Ticket).join(
-            TicketCategory, Ticket.id_category == TicketCategory.id_category
-        ).filter(
-            and_(
-                TicketCategory.id_department == dept_id,
-                Ticket.id_employee == None
-            )
-        ).all()
+    def get_by_employee(self, employee_id: uuid.UUID, include_closed: bool = False) -> List[Ticket]:
+        query = self._base_query().filter(Ticket.id_employee == employee_id)
+        if not include_closed:
+            query = query.filter(Ticket.status.in_(TicketStatusConstants.ACTIVE_STATUSES))
+        else:
+            query = query.filter(Ticket.status == "Closed")
+        return query.all()
 
-    def get_by_employee(self, employee_id: uuid.UUID) -> List[Ticket]:
-        return self.db.query(Ticket).filter(
-            and_(
-                Ticket.id_employee == employee_id,
-                Ticket.status.in_(TicketStatusConstants.ACTIVE_STATUSES)
-            )
-        ).all()
-
-    def get_by_customer(self, customer_id: uuid.UUID) -> List[Ticket]:
-        return self.db.query(Ticket).filter(Ticket.id_customer == customer_id).all()
+    def get_by_customer(self, customer_id: uuid.UUID, include_closed: bool = False) -> List[Ticket]:
+        query = self._base_query().filter(Ticket.id_customer == customer_id)
+        if not include_closed:
+            query = query.filter(Ticket.status != "Closed")
+        return query.all()
 
     def get_active_ticket_count(self, employee_id: uuid.UUID) -> int:
-        return self.db.query(Ticket).filter(
+        return self._base_query().filter(
             and_(
                 Ticket.id_employee == employee_id,
                 Ticket.status.in_(TicketStatusConstants.ACTIVE_STATUSES)
@@ -71,6 +70,13 @@ class TicketRepository:
             ticket.id_employee = employee_id
             self.db.commit()
             self.db.refresh(ticket)
+        return ticket
+
+    def soft_delete(self, ticket: Ticket) -> Ticket:
+        ticket.is_deleted = True
+        ticket.deleted_at = datetime.utcnow()
+        self.db.commit()
+        self.db.refresh(ticket)
         return ticket
 
     def delete(self, ticket: Ticket):
