@@ -256,3 +256,436 @@ def run_survey_job(db: Session):
     result = job.check_and_send_pending_surveys()
     logger.info(f"Survey job completed: {result}")
     return result
+
+
+class SentimentAnalysisJob:
+    """Background job to analyze sentiment from all sources every 7 days"""
+
+    BATCH_SIZE = 50
+    SLEEP_SECONDS = 1.0
+
+    def __init__(self, db: Session):
+        self.db = db
+        self.groq_service = None
+
+    def _get_groq_service(self):
+        if self.groq_service is None:
+            from app.services.groqService import GroqService
+            self.groq_service = GroqService()
+        return self.groq_service
+
+    def run_analysis(self) -> dict:
+        """
+        Phân tích sentiment cho tất cả data trong 7 ngày qua.
+        Chạy batch processing để tránh tràn RAM.
+        """
+        result = {
+            "processed": 0,
+            "positive": 0,
+            "neutral": 0,
+            "negative": 0,
+            "errors": 0
+        }
+
+        try:
+            end_date = datetime.utcnow()
+            start_date = end_date - timedelta(days=7)
+
+            sources = ["message", "evaluation", "comment"]
+
+            for source in sources:
+                try:
+                    source_result = self._process_source(source, start_date, end_date)
+                    result["processed"] += source_result["processed"]
+                    result["positive"] += source_result["positive"]
+                    result["neutral"] += source_result["neutral"]
+                    result["negative"] += source_result["negative"]
+                    result["errors"] += source_result["errors"]
+                except Exception as e:
+                    logger.error(f"Error processing source {source}: {e}")
+
+            self._generate_reports(start_date, end_date)
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error in sentiment analysis: {e}")
+            return result
+
+    def _process_source(self, source_type: str, start_date: datetime, end_date: datetime) -> dict:
+        """Xử lý 1 nguồn (messages/evaluations/comments)"""
+        result = {"processed": 0, "positive": 0, "neutral": 0, "negative": 0, "errors": 0}
+
+        if source_type == "message":
+            data_items = self._get_messages(start_date, end_date)
+        elif source_type == "evaluation":
+            data_items = self._get_evaluations(start_date, end_date)
+        elif source_type == "comment":
+            data_items = self._get_comments(start_date, end_date)
+        else:
+            return result
+
+        groq_service = self._get_groq_service()
+
+        for i in range(0, len(data_items), self.BATCH_SIZE):
+            batch = data_items[i:i + self.BATCH_SIZE]
+
+            for item in batch:
+                try:
+                    content = item["content"]
+                    sentiment = groq_service.analyze_sentiment(content)
+
+                    label = sentiment.get("label", "neutral")
+                    score = sentiment.get("score", 0.0)
+
+                    self._save_detail(
+                        source_type=source_type,
+                        source_id=item["id"],
+                        label=label,
+                        score=score,
+                        customer_id=item["customer_id"],
+                        ticket_id=item.get("ticket_id"),
+                        department_id=item["department_id"],
+                        content=content[:500] if content else None
+                    )
+
+                    if label == "positive":
+                        result["positive"] += 1
+                    elif label == "neutral":
+                        result["neutral"] += 1
+                    else:
+                        result["negative"] += 1
+
+                    result["processed"] += 1
+
+                except Exception as e:
+                    logger.error(f"Error processing {source_type} {item['id']}: {e}")
+                    result["errors"] += 1
+
+            self.db.commit()
+
+            import time
+            time.sleep(self.SLEEP_SECONDS)
+
+        return result
+
+    def _get_messages(self, start_date: datetime, end_date: datetime) -> list:
+        from sqlalchemy import text
+
+        query = text("""
+            SELECT m.id_message, m.message, m.id_ticket, t.id_customer, e.id_department
+            FROM messages m
+            JOIN tickets t ON m.id_ticket = t.id_ticket
+            LEFT JOIN employees e ON t.id_employee = e.id_employee
+            WHERE m.created_at >= :start_date AND m.created_at < :end_date
+            AND m.is_deleted = false
+        """)
+        results = self.db.execute(query, {"start_date": start_date, "end_date": end_date}).fetchall()
+
+        return [
+            {
+                "id": row[0],
+                "content": row[1],
+                "ticket_id": row[2],
+                "customer_id": row[3],
+                "department_id": row[4]
+            }
+            for row in results
+        ]
+
+    def _get_evaluations(self, start_date: datetime, end_date: datetime) -> list:
+        from sqlalchemy import text
+
+        query = text("""
+            SELECT e.id_evaluate, e.comment, e.id_ticket, t.id_customer, emp.id_department
+            FROM evaluates e
+            JOIN tickets t ON e.id_ticket = t.id_ticket
+            LEFT JOIN employees emp ON t.id_employee = emp.id_employee
+            WHERE e.created_at >= :start_date AND e.created_at < :end_date
+        """)
+        results = self.db.execute(query, {"start_date": start_date, "end_date": end_date}).fetchall()
+
+        return [
+            {
+                "id": row[0],
+                "content": str(row[1]) if row[1] else "Star rating",
+                "ticket_id": row[2],
+                "customer_id": row[3],
+                "department_id": row[4]
+            }
+            for row in results
+        ]
+
+    def _get_comments(self, start_date: datetime, end_date: datetime) -> list:
+        from sqlalchemy import text
+
+        query = text("""
+            SELECT tc.id_comment, tc.content, tc.id_ticket, t.id_customer, e.id_department
+            FROM ticket_comments tc
+            JOIN tickets t ON tc.id_ticket = t.id_ticket
+            LEFT JOIN employees e ON t.id_employee = e.id_employee
+            WHERE tc.created_at >= :start_date AND tc.created_at < :end_date
+        """)
+        results = self.db.execute(query, {"start_date": start_date, "end_date": end_date}).fetchall()
+
+        return [
+            {
+                "id": row[0],
+                "content": row[1],
+                "ticket_id": row[2],
+                "customer_id": row[3],
+                "department_id": row[4]
+            }
+            for row in results
+        ]
+
+    def _save_detail(self, source_type: str, source_id, label: str, score: float,
+                     customer_id, ticket_id, department_id, content: str):
+        from sqlalchemy import text
+
+        target_date = datetime.utcnow() - timedelta(days=3)
+        year = target_date.year
+        month = target_date.month
+
+        check_report = text("""
+            SELECT id_report FROM sentiment_reports 
+            WHERE year = :year AND month = :month AND scope = 'system' AND id_department IS NULL
+        """)
+        report_row = self.db.execute(check_report, {"year": year, "month": month}).fetchone()
+
+        if not report_row:
+            insert_report = text("""
+                INSERT INTO sentiment_reports (id_report, year, month, scope, id_department, 
+                    positive_count, neutral_count, negative_count, total_interactions, created_at)
+                VALUES (gen_random_uuid(), :year, :month, 'system', NULL, 0, 0, 0, 0, NOW())
+                RETURNING id_report
+            """)
+            result = self.db.execute(insert_report, {"year": year, "month": month})
+            id_report = result.fetchone()[0]
+        else:
+            id_report = report_row[0]
+
+        sentiment_counts = {"positive": 0, "neutral": 0, "negative": 0}
+        if label == "positive":
+            sentiment_counts["positive"] = 1
+        elif label == "neutral":
+            sentiment_counts["neutral"] = 1
+        else:
+            sentiment_counts["negative"] = 1
+
+        source_field_map = {
+            "message": f"message_{label}",
+            "evaluation": f"evaluation_{label}",
+            "comment": f"comment_{label}"
+        }
+
+        update_fields = {
+            "positive_count": sentiment_counts["positive"],
+            "neutral_count": sentiment_counts["neutral"],
+            "negative_count": sentiment_counts["negative"],
+            "total_interactions": 1
+        }
+
+        if source_type in source_field_map:
+            update_fields[source_field_map[source_type]] = 1
+
+        set_clauses = []
+        params = {"id_report": id_report}
+        for key, value in update_fields.items():
+            if key == "total_interactions":
+                set_clauses.append(f"{key} = {key} + :{key}")
+            else:
+                set_clauses.append(f"{key} = {key} + :{key}")
+            params[key] = value
+
+        set_clauses.append("updated_at = NOW()")
+
+        update_report = text(f"""
+            UPDATE sentiment_reports SET 
+                {', '.join(set_clauses)}
+            WHERE id_report = :id_report
+        """)
+        self.db.execute(update_report, params)
+
+        insert_detail = text("""
+            INSERT INTO sentiment_details (id_detail, id_report, source_type, source_id, sentiment_label, 
+                sentiment_score, id_customer, id_ticket, id_department, original_content, created_at)
+            VALUES (gen_random_uuid(), :id_report, :source_type, :source_id, :label, :score, 
+                :customer_id, :ticket_id, :department_id, :content, NOW())
+        """)
+        self.db.execute(insert_detail, {
+            "id_report": id_report,
+            "source_type": source_type,
+            "source_id": source_id,
+            "label": label,
+            "score": score,
+            "customer_id": customer_id,
+            "ticket_id": ticket_id,
+            "department_id": department_id,
+            "content": content
+        })
+
+    def _generate_reports(self, start_date: datetime, end_date: datetime):
+        """Tạo/cập nhật sentiment_reports cho system và từng department"""
+        from sqlalchemy import text
+
+        target_date = end_date - timedelta(days=3)
+        year = target_date.year
+        month = target_date.month
+
+        details_query = text("""
+            SELECT id_detail, sentiment_label, sentiment_score, id_department, source_type
+            FROM sentiment_details
+        """)
+        details = self.db.execute(details_query).fetchall()
+
+        if not details:
+            return
+
+        total_score = sum(d[2] for d in details)
+        avg_score = total_score / len(details) if details else 0.0
+
+        update_system = text("""
+            UPDATE sentiment_reports SET 
+                avg_sentiment_score = :avg_score,
+                total_interactions = :total,
+                updated_at = NOW()
+            WHERE year = :year AND month = :month AND scope = 'system' AND id_department IS NULL
+        """)
+        self.db.execute(update_system, {"avg_score": avg_score, "total": len(details), "year": year, "month": month})
+
+        dept_stats = {}
+        for detail in details:
+            dept_id = detail[3]
+            source_type = detail[4]
+            label = detail[1]
+            score = detail[2]
+
+            if dept_id:
+                if dept_id not in dept_stats:
+                    dept_stats[dept_id] = {
+                        "positive": 0, "neutral": 0, "negative": 0,
+                        "total_score": 0.0, "count": 0,
+                        "message_positive": 0, "message_neutral": 0, "message_negative": 0,
+                        "evaluation_positive": 0, "evaluation_neutral": 0, "evaluation_negative": 0,
+                        "comment_positive": 0, "comment_neutral": 0, "comment_negative": 0
+                    }
+
+                if label == "positive":
+                    dept_stats[dept_id]["positive"] += 1
+                elif label == "neutral":
+                    dept_stats[dept_id]["neutral"] += 1
+                else:
+                    dept_stats[dept_id]["negative"] += 1
+
+                dept_stats[dept_id]["total_score"] += score
+                dept_stats[dept_id]["count"] += 1
+
+                if source_type == "message":
+                    if label == "positive":
+                        dept_stats[dept_id]["message_positive"] += 1
+                    elif label == "neutral":
+                        dept_stats[dept_id]["message_neutral"] += 1
+                    else:
+                        dept_stats[dept_id]["message_negative"] += 1
+                elif source_type == "evaluation":
+                    if label == "positive":
+                        dept_stats[dept_id]["evaluation_positive"] += 1
+                    elif label == "neutral":
+                        dept_stats[dept_id]["evaluation_neutral"] += 1
+                    else:
+                        dept_stats[dept_id]["evaluation_negative"] += 1
+                elif source_type == "comment":
+                    if label == "positive":
+                        dept_stats[dept_id]["comment_positive"] += 1
+                    elif label == "neutral":
+                        dept_stats[dept_id]["comment_neutral"] += 1
+                    else:
+                        dept_stats[dept_id]["comment_negative"] += 1
+
+        for dept_id, stats in dept_stats.items():
+            dept_avg_score = stats["total_score"] / stats["count"] if stats["count"] > 0 else 0.0
+
+            check_dept = text("""
+                SELECT id_report FROM sentiment_reports 
+                WHERE year = :year AND month = :month AND scope = 'department' AND id_department = :dept_id
+            """)
+            dept_row = self.db.execute(check_dept, {"year": year, "month": month, "dept_id": dept_id}).fetchone()
+
+            if not dept_row:
+                insert_dept = text("""
+                    INSERT INTO sentiment_reports (id_report, year, month, scope, id_department, 
+                        positive_count, neutral_count, negative_count, total_interactions, 
+                        avg_sentiment_score, message_positive, message_neutral, message_negative,
+                        evaluation_positive, evaluation_neutral, evaluation_negative,
+                        comment_positive, comment_neutral, comment_negative, created_at)
+                    VALUES (gen_random_uuid(), :year, :month, 'department', :dept_id,
+                        :positive, :neutral, :negative, :total, :avg_score,
+                        :msg_pos, :msg_neut, :msg_neg,
+                        :eval_pos, :eval_neut, :eval_neg,
+                        :com_pos, :com_neut, :com_neg, NOW())
+                """)
+                self.db.execute(insert_dept, {
+                    "year": year, "month": month, "dept_id": dept_id,
+                    "positive": stats["positive"],
+                    "neutral": stats["neutral"],
+                    "negative": stats["negative"],
+                    "total": stats["count"],
+                    "avg_score": dept_avg_score,
+                    "msg_pos": stats["message_positive"],
+                    "msg_neut": stats["message_neutral"],
+                    "msg_neg": stats["message_negative"],
+                    "eval_pos": stats["evaluation_positive"],
+                    "eval_neut": stats["evaluation_neutral"],
+                    "eval_neg": stats["evaluation_negative"],
+                    "com_pos": stats["comment_positive"],
+                    "com_neut": stats["comment_neutral"],
+                    "com_neg": stats["comment_negative"]
+                })
+            else:
+                update_dept = text("""
+                    UPDATE sentiment_reports SET 
+                        positive_count = :positive,
+                        neutral_count = :neutral,
+                        negative_count = :negative,
+                        total_interactions = :total,
+                        avg_sentiment_score = :avg_score,
+                        message_positive = :msg_pos,
+                        message_neutral = :msg_neut,
+                        message_negative = :msg_neg,
+                        evaluation_positive = :eval_pos,
+                        evaluation_neutral = :eval_neut,
+                        evaluation_negative = :eval_neg,
+                        comment_positive = :com_pos,
+                        comment_neutral = :com_neut,
+                        comment_negative = :com_neg,
+                        updated_at = NOW()
+                    WHERE id_report = :id_report
+                """)
+                self.db.execute(update_dept, {
+                    "positive": stats["positive"],
+                    "neutral": stats["neutral"],
+                    "negative": stats["negative"],
+                    "total": stats["count"],
+                    "avg_score": dept_avg_score,
+                    "msg_pos": stats["message_positive"],
+                    "msg_neut": stats["message_neutral"],
+                    "msg_neg": stats["message_negative"],
+                    "eval_pos": stats["evaluation_positive"],
+                    "eval_neut": stats["evaluation_neutral"],
+                    "eval_neg": stats["evaluation_negative"],
+                    "com_pos": stats["comment_positive"],
+                    "com_neut": stats["comment_neutral"],
+                    "com_neg": stats["comment_negative"],
+                    "id_report": dept_row[0]
+                })
+
+        self.db.commit()
+
+
+def run_sentiment_analysis(db: Session):
+    """Standalone function to run sentiment analysis job"""
+    job = SentimentAnalysisJob(db)
+    result = job.run_analysis()
+    logger.info(f"Sentiment analysis completed: {result}")
+    return result

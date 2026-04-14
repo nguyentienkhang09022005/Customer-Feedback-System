@@ -1,9 +1,23 @@
 import httpx
 from typing import List, Optional, Dict, Any
 from app.core.config import settings
+from app.core.constants import SentimentLabel, SentimentConstants
 import logging
+import json
 
 logger = logging.getLogger(__name__)
+
+
+SENTIMENT_SYSTEM_PROMPT = """You are a customer sentiment analyzer. Analyze the following text and return a JSON object with:
+- "label": "positive" if sentiment is positive, "neutral" if neutral, "negative" if negative
+- "score": a float from -1.0 (very negative) to 1.0 (very positive)
+
+Rules:
+- Positive (label: "positive", score >= 0.3): happy, satisfied, grateful, compliment, solved
+- Negative (label: "negative", score <= -0.3): angry, frustrated, disappointed, complaint, urgent problem
+- Neutral (label: "neutral", -0.3 < score < 0.3): factual, informational, routine inquiry
+
+Return ONLY the JSON object, no explanation."""
 
 
 class GroqService:
@@ -89,3 +103,36 @@ class GroqService:
                 continue
 
         raise Exception("All Groq API keys exhausted")
+
+    def analyze_sentiment(self, text: str) -> Dict[str, Any]:
+        """
+        Analyze sentiment of given text using Groq API.
+        Returns dict with label (positive/neutral/negative) and score (-1.0 to 1.0).
+        """
+        if not text or len(text.strip()) == 0:
+            return {"label": SentimentLabel.NEUTRAL.value, "score": 0.0}
+
+        try:
+            messages = [
+                {"role": "system", "content": SENTIMENT_SYSTEM_PROMPT},
+                {"role": "user", "content": text[:1000]}
+            ]
+            response_text = self.chat(messages)
+            result = json.loads(response_text)
+
+            label = result.get("label", SentimentLabel.NEUTRAL.value)
+            score = float(result.get("score", 0.0))
+
+            if label not in [SentimentLabel.POSITIVE.value, SentimentLabel.NEUTRAL.value, SentimentLabel.NEGATIVE.value]:
+                label = SentimentLabel.NEUTRAL.value
+
+            score = max(-1.0, min(1.0, score))
+
+            return {"label": label, "score": score}
+
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse sentiment response: {e}")
+            return {"label": SentimentLabel.NEUTRAL.value, "score": 0.0}
+        except Exception as e:
+            logger.error(f"Error analyzing sentiment: {e}")
+            return {"label": SentimentLabel.NEUTRAL.value, "score": 0.0}
