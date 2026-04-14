@@ -373,6 +373,100 @@ Best regards,
         
         return self._send_with_retry(msg)
 
+    def send_csat_survey(
+        self,
+        to_email: str,
+        ticket_id: str,
+        ticket_title: str,
+        ticket_status: str = None,
+        ticket_severity: str = None
+    ) -> bool:
+        """
+        Send CSAT survey email after ticket is resolved
+
+        Args:
+            to_email: Recipient email
+            ticket_id: Ticket ID
+            ticket_title: Title of the ticket
+            ticket_status: Current status of the ticket
+            ticket_severity: Severity level of the ticket
+
+        Returns:
+            bool: True if sent successfully
+        """
+        import os
+
+        subject = f"📊 Khảo sát mức độ hài lòng"
+        short_title = ticket_title[:60] + "..." if len(ticket_title) > 60 else ticket_title
+
+        template_path = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "templates", "email", "csat_survey.html"
+        )
+
+        try:
+            with open(template_path, "r", encoding="utf-8") as f:
+                body_html = f.read()
+            body_html = body_html.replace("{ticket_id}", ticket_id[:8])
+            body_html = body_html.replace("{ticket_title}", short_title)
+            body_html = body_html.replace("{ticket_status}", ticket_status or "N/A")
+            body_html = body_html.replace("{ticket_severity}", ticket_severity or "N/A")
+        except FileNotFoundError:
+            body_html = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0d1117; color: #c9d1d9;">
+                <h2 style="color: #238636;">📊 Khảo sát mức độ hài lòng</h2>
+                <p>Xin chào quý khách,</p>
+                <p>Ticket <strong>#{ticket_id[:8]}</strong> - "{short_title}" đã được giải quyết.</p>
+                <p>Trạng thái: {ticket_status} | Mức độ: {ticket_severity}</p>
+                <p>Vui lòng reply email này với số đánh giá (1-5):</p>
+                <ul>
+                    <li>5 - Rất hài lòng</li>
+                    <li>4 - Hài lòng</li>
+                    <li>3 - Bình thường</li>
+                    <li>2 - Không hài lòng</li>
+                    <li>1 - Rất không hài lòng</li>
+                </ul>
+                <p>Best regards,<br>{self.from_name}</p>
+            </body>
+            </html>
+            """
+
+        body_text = f"""
+Khảo sát mức độ hài lòng - Ticket #{ticket_id[:8]}
+================================================
+
+Xin chào quý khách,
+
+Ticket "{short_title}" đã được giải quyết.
+Trạng thái: {ticket_status} | Mức độ: {ticket_severity}
+
+Chúng tôi rất mong nhận được phản hồi từ bạn!
+
+Vui lòng reply email này với số đánh giá (1-5):
+- 5: Rất hài lòng
+- 4: Hài lòng
+- 3: Bình thường
+- 2: Không hài lòng
+- 1: Rất không hài lòng
+
+Cảm ơn bạn!
+
+Best regards,
+{self.from_name}
+        """
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"{self.from_name} <{self.user}>"
+        msg['To'] = to_email
+
+        msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
+        msg.attach(MIMEText(body_html, 'html', 'utf-8'))
+
+        return self._send_with_retry(msg)
+
 
 # Singleton instance
 email_service = EmailService()

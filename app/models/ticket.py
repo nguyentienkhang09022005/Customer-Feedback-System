@@ -78,6 +78,9 @@ class Ticket(Base):
     is_deleted = Column(Boolean, default=False)
     deleted_at = Column(DateTime, nullable=True)
 
+    survey_sent = Column(Boolean, default=False, nullable=False)
+    resolved_at = Column(DateTime, nullable=True)
+
     __mapper_args__ = {
         "version_id_col": version
     }

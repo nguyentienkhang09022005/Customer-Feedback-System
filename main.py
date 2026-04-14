@@ -4,8 +4,9 @@ import socketio
 import os
 from app.api.v1 import roles, customerTypes, employees, customers, auth, user, ticketCategories, tickets, departments, \
     faq, chat, audit, sla, evaluate, notification, cloudinary_signatures, department_assignments, ticketComments, ticketHistory, \
-    templates, chatbot
+    templates, chatbot, analytics, department_analytics
 from app.socketio.manager import sio
+from app.core.scheduler import init_scheduler, shutdown_scheduler
 
 app = FastAPI(title="Customer Feedback System")
 
@@ -40,6 +41,18 @@ app.include_router(evaluate.router, prefix="/api/v1")
 app.include_router(notification.router, prefix="/api/v1")
 app.include_router(department_assignments.router, prefix="/api/v1")
 app.include_router(chatbot.router, prefix="/api/v1")
+app.include_router(analytics.router, prefix="/api/v1")
+app.include_router(department_analytics.router, prefix="/api/v1")
 
 socket_app = socketio.ASGIApp(sio, app)
 app.mount("/socket.io", socket_app)
+
+
+@app.on_event("startup")
+async def startup_event():
+    init_scheduler()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    shutdown_scheduler()

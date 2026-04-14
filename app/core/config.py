@@ -55,4 +55,9 @@ class Settings:
     THUMBNAIL_SIZE: tuple = (300, 300)
     ATTACHMENT_CLEANUP_DAYS: int = int(os.getenv("ATTACHMENT_CLEANUP_DAYS", "30"))
 
+    # Survey Job Configuration
+    SURVEY_DELAY_HOURS: int = int(os.getenv("SURVEY_DELAY_HOURS", "1"))
+    SURVEY_BATCH_SIZE: int = int(os.getenv("SURVEY_BATCH_SIZE", "100"))
+    SURVEY_JOB_INTERVAL_HOURS: int = int(os.getenv("SURVEY_JOB_INTERVAL_HOURS", "1"))
+
 settings = Settings()
