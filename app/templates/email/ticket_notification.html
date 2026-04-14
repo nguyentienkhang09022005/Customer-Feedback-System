@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thong bao Ticket</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0d1117; color: #c9d1d9;">
+    <div style="background-color: #161b22; border-radius: 12px; border: 1px solid #30363d; overflow: hidden;">
+        <div style="background-color: #1c2128; padding: 24px 32px; border-bottom: 1px solid #30363d;">
+            <h2 style="color: #238636; margin: 0;">{event_icon} Thong bao Ticket</h2>
+            <p style="color: #8b949e; font-size: 13px; margin: 8px 0 0 0;">Ticket #{ticket_id}</p>
+        </div>
+        <div style="padding: 28px 32px;">
+            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 20px;">
+                <tr>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #30363d;">
+                        <span style="color: #8b949e;">Ticket ID</span>
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #30363d; text-align: right;">
+                        <strong style="color: #c9d1d9;">#{ticket_id}</strong>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #30363d;">
+                        <span style="color: #8b949e;">Su kien</span>
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #30363d; text-align: right;">
+                        <strong style="color: #238636;">{event_type}</strong>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px 16px;">
+                        <span style="color: #8b949e;">Trang thai</span>
+                    </td>
+                    <td style="padding: 12px 16px; text-align: right;">
+                        <span style="color: #c9d1d9;">{ticket_status}</span>
+                    </td>
+                </tr>
+            </table>
+            <p style="color: #c9d1d9; margin: 0 0 16px 0; line-height: 1.6;">
+                {event_message}
+            </p>
+            {additional_info_block}
+        </div>
+        <div style="background-color: #1c2128; padding: 16px 32px; border-top: 1px solid #30363d;">
+            <p style="color: #484f58; font-size: 12px; margin: 0;">
+                <strong>Customer Feedback System</strong><br>
+                Email tu dong - vui long khong reply truc tiep
+            </p>
+        </div>
+    </div>
+</body>
+</html>

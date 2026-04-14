@@ -1,12 +1,37 @@
 import smtplib
 import ssl
 import logging
+import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional, List
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# Template paths
+TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "..", "templates", "email")
+
+def _load_template(template_name: str) -> Optional[str]:
+    """Load email template from file."""
+    template_path = os.path.join(TEMPLATE_DIR, template_name)
+    try:
+        with open(template_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        logger.warning(f"Template not found: {template_name}")
+        return None
+
+
+# Import template content
+TEMPLATE_OTP_VERIFICATION_HTML = _load_template("otp_verification.html")
+TEMPLATE_OTP_VERIFICATION_TXT = _load_template("otp_verification.txt")
+TEMPLATE_PASSWORD_RESET_HTML = _load_template("password_reset.html")
+TEMPLATE_PASSWORD_RESET_TXT = _load_template("password_reset.txt")
+TEMPLATE_TICKET_NOTIFICATION_HTML = _load_template("ticket_notification.html")
+TEMPLATE_TICKET_NOTIFICATION_TXT = _load_template("ticket_notification.txt")
+TEMPLATE_CSAT_SURVEY_HTML = _load_template("csat_survey.html")
 
 
 class EmailService:
@@ -169,52 +194,28 @@ class EmailService:
     def send_otp_email(self, to_email: str, otp_code: str) -> bool:
         """
         Send OTP verification email
-        
+        Template: app/templates/email/otp_verification.html, otp_verification.txt
+
         Args:
             to_email: Recipient email
             otp_code: 6-digit OTP code
-        
+
         Returns:
             bool: True if sent successfully
         """
-        subject = "🔐 Your OTP Verification Code"
-        
-        body_text = f"""
-Your OTP Verification Code
-==========================
+        subject = "Xac minh OTP - Ma xac minh dang nhap"
 
-Your verification code is: {otp_code}
+        # Use template if available, fallback to inline
+        if TEMPLATE_OTP_VERIFICATION_HTML:
+            body_html = TEMPLATE_OTP_VERIFICATION_HTML.replace("{otp_code}", otp_code)
+        else:
+            body_html = f"<html><body><h2>Xac minh OTP</h2><p>Ma cua ban: <strong>{otp_code}</strong></p></body></html>"
 
-This code will expire in 5 minutes.
+        if TEMPLATE_OTP_VERIFICATION_TXT:
+            body_text = TEMPLATE_OTP_VERIFICATION_TXT.replace("{otp_code}", otp_code)
+        else:
+            body_text = f"Ma xac minh: {otp_code}"
 
-If you did not request this code, please ignore this email.
-
-Best regards,
-{self.from_name}
-        """
-        
-        body_html = f"""
-<html>
-<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-    <h2>Your OTP Verification Code</h2>
-    <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; text-align: center;">
-        <h1 style="color: #333; letter-spacing: 5px; margin: 0;">{otp_code}</h1>
-    </div>
-    <p style="color: #666; margin-top: 20px;">
-        This code will expire in <strong>5 minutes</strong>.
-    </p>
-    <p style="color: #999; font-size: 12px;">
-        If you did not request this code, please ignore this email.
-    </p>
-    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-    <p style="color: #666; font-size: 14px;">
-        Best regards,<br>
-        <strong>{self.from_name}</strong>
-    </p>
-</body>
-</html>
-        """
-        
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = f"{self.from_name} <{self.user}>"
@@ -228,51 +229,27 @@ Best regards,
     def send_password_reset_otp_email(self, to_email: str, otp_code: str) -> bool:
         """
         Send password reset OTP email
-        
+        Template: app/templates/email/password_reset.html, password_reset.txt
+
         Args:
             to_email: Recipient email
             otp_code: 6-digit OTP code
-        
+
         Returns:
             bool: True if sent successfully
         """
-        subject = "🔑 Password Reset Request - OTP Code"
-        
-        body_text = f"""
-Password Reset Request
-=======================
+        subject = "Dat lai mat khau - Ma xac minh"
 
-Your password reset code is: {otp_code}
+        # Use template if available, fallback to inline
+        if TEMPLATE_PASSWORD_RESET_HTML:
+            body_html = TEMPLATE_PASSWORD_RESET_HTML.replace("{otp_code}", otp_code)
+        else:
+            body_html = f"<html><body><h2>Dat lai mat khau</h2><p>Ma cua ban: <strong>{otp_code}</strong></p></body></html>"
 
-This code will expire in 5 minutes.
-
-If you did not request this password reset, please ignore this email and your account remains secure.
-
-Best regards,
-{self.from_name}
-        """
-        
-        body_html = f"""
-<html>
-<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-    <h2>🔑 Password Reset Request</h2>
-    <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; text-align: center; border: 1px solid #ffc107;">
-        <h1 style="color: #333; letter-spacing: 5px; margin: 0;">{otp_code}</h1>
-    </div>
-    <p style="color: #666; margin-top: 20px;">
-        This code will expire in <strong>5 minutes</strong>.
-    </p>
-    <p style="color: #666; margin-top: 20px;">
-        If you did not request this password reset, please ignore this email and your account remains secure.
-    </p>
-    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-    <p style="color: #666; font-size: 14px;">
-        Best regards,<br>
-        <strong>{self.from_name}</strong>
-    </p>
-</body>
-</html>
-        """
+        if TEMPLATE_PASSWORD_RESET_TXT:
+            body_text = TEMPLATE_PASSWORD_RESET_TXT.replace("{otp_code}", otp_code)
+        else:
+            body_text = f"Ma dat lai mat khau: {otp_code}"
         
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
@@ -293,75 +270,74 @@ Best regards,
     ) -> bool:
         """
         Send ticket notification email
-        
+        Template: app/templates/email/ticket_notification.html, ticket_notification.txt
+
         Args:
             to_email: Recipient email
             ticket_id: Ticket ID
             event_type: Type of event (created, assigned, updated, resolved, closed)
             additional_info: Additional ticket info
-        
+
         Returns:
             bool: True if sent successfully
         """
         event_subjects = {
-            'created': f"🎫 Ticket #{ticket_id} Created",
-            'assigned': f"📋 Ticket #{ticket_id} Assigned to You",
-            'updated': f"🔄 Ticket #{ticket_id} Updated",
-            'resolved': f"✅ Ticket #{ticket_id} Resolved",
-            'closed': f"🔒 Ticket #{ticket_id} Closed"
+            'created': f"Ticket #{ticket_id} - Da tao moi",
+            'assigned': f"Ticket #{ticket_id} - Da duoc phan cong",
+            'updated': f"Ticket #{ticket_id} - Da duoc cap nhat",
+            'resolved': f"Ticket #{ticket_id} - Da duoc giai quyet",
+            'closed': f"Ticket #{ticket_id} - Da dong"
         }
-        
-        subject = event_subjects.get(event_type, f"Ticket #{ticket_id} Notification")
-        
+
+        event_icons = {
+            'created': "🎫",
+            'assigned': "📋",
+            'updated': "🔄",
+            'resolved': "✅",
+            'closed': "🔒"
+        }
+
         event_messages = {
-            'created': "Your ticket has been created successfully. Our team will respond soon.",
-            'assigned': "A new ticket has been assigned to you. Please review and take action.",
-            'updated': "The ticket status or details have been updated.",
-            'resolved': "The ticket has been resolved. Please review the resolution.",
-            'closed': "The ticket has been closed."
+            'created': "Ticket cua ban da duoc tao thanh cong. Bo phan ho tro se phan hoi som.",
+            'assigned': "Mot ticket moi da duoc phan cong cho ban. Vui long kiem tra va hanh dong.",
+            'updated': "Trang thai hoac chi tiet ticket da duoc cap nhat.",
+            'resolved': "Ticket da duoc giai quyet. Vui long kiem tra ket qua.",
+            'closed': "Ticket da duoc dong."
         }
-        
-        body_text = f"""
-Ticket Notification
-===================
 
-Ticket ID: {ticket_id}
-Event: {event_type.replace('_', ' ').title()}
+        subject = event_subjects.get(event_type, f"Ticket #{ticket_id} - Thong bao")
+        event_icon = event_icons.get(event_type, "📌")
+        event_message = event_messages.get(event_type, "Ban co thong bao ticket.")
+        event_type_display = event_type.replace('_', ' ').title()
 
-{event_messages.get(event_type, 'You have a ticket notification.')}
+        # Build additional info block
+        additional_info_block = ""
+        additional_info_text = ""
+        if additional_info:
+            additional_info_block = f"<pre style='background: #21262d; padding: 12px; border-radius: 6px; font-size: 13px; color: #c9d1d9;'>{additional_info}</pre>"
+            additional_info_text = f"Thong tin them: {additional_info}"
 
-{"Additional Information:" + str(additional_info) if additional_info else ""}
+        # Use template if available
+        if TEMPLATE_TICKET_NOTIFICATION_HTML:
+            body_html = TEMPLATE_TICKET_NOTIFICATION_HTML
+            body_html = body_html.replace("{ticket_id}", ticket_id)
+            body_html = body_html.replace("{event_icon}", event_icon)
+            body_html = body_html.replace("{event_type}", event_type_display)
+            body_html = body_html.replace("{ticket_status}", event_type.replace('_', ' ').title())
+            body_html = body_html.replace("{event_message}", event_message)
+            body_html = body_html.replace("{additional_info_block}", additional_info_block)
+        else:
+            body_html = f"<html><body><h2>{event_icon} Thong bao Ticket</h2><p>Ticket #{ticket_id}<br>Su kien: {event_type_display}</p><p>{event_message}</p></body></html>"
 
-Best regards,
-{self.from_name}
-        """
-        
-        body_html = f"""
-<html>
-<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-    <h2>🎫 Ticket Notification</h2>
-    <table style="width: 100%; border-collapse: collapse;">
-        <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>Ticket ID</strong></td>
-            <td style="padding: 10px; border-bottom: 1px solid #eee;">{ticket_id}</td>
-        </tr>
-        <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>Event</strong></td>
-            <td style="padding: 10px; border-bottom: 1px solid #eee;">{event_type.replace('_', ' ').title()}</td>
-        </tr>
-    </table>
-    <p style="margin-top: 20px; color: #333;">
-        {event_messages.get(event_type, 'You have a ticket notification.')}
-    </p>
-    {"<pre style='background: #f5f5f5; padding: 10px;'>" + str(additional_info) + "</pre>" if additional_info else ""}
-    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-    <p style="color: #666; font-size: 14px;">
-        Best regards,<br>
-        <strong>{self.from_name}</strong>
-    </p>
-</body>
-</html>
-        """
+        if TEMPLATE_TICKET_NOTIFICATION_TXT:
+            body_text = TEMPLATE_TICKET_NOTIFICATION_TXT
+            body_text = body_text.replace("{ticket_id}", ticket_id)
+            body_text = body_text.replace("{event_type}", event_type_display)
+            body_text = body_text.replace("{ticket_status}", event_type_display)
+            body_text = body_text.replace("{event_message}", event_message)
+            body_text = body_text.replace("{additional_info}", additional_info_text)
+        else:
+            body_text = f"Thong bao Ticket\nTicket #{ticket_id}\n{event_message}"
         
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
@@ -396,42 +372,18 @@ Best regards,
         """
         import os
 
-        subject = f"📊 Khảo sát mức độ hài lòng"
+        subject = "Khao sat muc do hai long"
         short_title = ticket_title[:60] + "..." if len(ticket_title) > 60 else ticket_title
 
-        template_path = os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "templates", "email", "csat_survey.html"
-        )
-
-        try:
-            with open(template_path, "r", encoding="utf-8") as f:
-                body_html = f.read()
+        # Use pre-loaded template
+        if TEMPLATE_CSAT_SURVEY_HTML:
+            body_html = TEMPLATE_CSAT_SURVEY_HTML
             body_html = body_html.replace("{ticket_id}", ticket_id[:8])
             body_html = body_html.replace("{ticket_title}", short_title)
             body_html = body_html.replace("{ticket_status}", ticket_status or "N/A")
             body_html = body_html.replace("{ticket_severity}", ticket_severity or "N/A")
-        except FileNotFoundError:
-            body_html = f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0d1117; color: #c9d1d9;">
-                <h2 style="color: #238636;">📊 Khảo sát mức độ hài lòng</h2>
-                <p>Xin chào quý khách,</p>
-                <p>Ticket <strong>#{ticket_id[:8]}</strong> - "{short_title}" đã được giải quyết.</p>
-                <p>Trạng thái: {ticket_status} | Mức độ: {ticket_severity}</p>
-                <p>Vui lòng reply email này với số đánh giá (1-5):</p>
-                <ul>
-                    <li>5 - Rất hài lòng</li>
-                    <li>4 - Hài lòng</li>
-                    <li>3 - Bình thường</li>
-                    <li>2 - Không hài lòng</li>
-                    <li>1 - Rất không hài lòng</li>
-                </ul>
-                <p>Best regards,<br>{self.from_name}</p>
-            </body>
-            </html>
-            """
+        else:
+            body_html = f"<html><body><h2>Khao sat</h2><p>Ticket #{ticket_id[:8]} - {short_title}</p></body></html>"
 
         body_text = f"""
 Khảo sát mức độ hài lòng - Ticket #{ticket_id[:8]}

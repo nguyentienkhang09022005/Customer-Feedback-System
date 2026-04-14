@@ -1,0 +1,11 @@
+XAC MINH OTP
+==========================
+
+Ma xac minh cua ban la: {otp_code}
+
+Ma nay se het han trong 5 phut.
+
+Neu ban khong yeu cau ma nay, vui long bo qua email.
+
+Best regards,
+Customer Feedback System

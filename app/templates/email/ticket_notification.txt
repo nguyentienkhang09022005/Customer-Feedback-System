@@ -1,0 +1,13 @@
+THONG BAO TICKET
+================
+
+Ticket ID: #{ticket_id}
+Su kien: {event_type}
+Trang thai: {ticket_status}
+
+{event_message}
+
+{additional_info}
+
+Best regards,
+Customer Feedback System
