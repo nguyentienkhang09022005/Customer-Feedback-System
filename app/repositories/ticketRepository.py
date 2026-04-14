@@ -39,11 +39,11 @@ class TicketRepository:
             query = query.filter(Ticket.status == "Closed")
         return query.all()
 
-    def get_by_customer(self, customer_id: uuid.UUID, include_closed: bool = False) -> List[Ticket]:
+    def get_by_customer(self, customer_id: uuid.UUID, include_closed: bool = False, limit: int = 100) -> List[Ticket]:
         query = self._base_query().filter(Ticket.id_customer == customer_id)
         if not include_closed:
             query = query.filter(Ticket.status != "Closed")
-        return query.all()
+        return query.order_by(Ticket.created_at.desc()).limit(limit).all()
 
     def get_active_ticket_count(self, employee_id: uuid.UUID) -> int:
         return self._base_query().filter(

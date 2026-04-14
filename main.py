@@ -2,6 +2,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import socketio
 import os
+import logging
+
+# Configure logging - show DEBUG and INFO messages
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger(__name__)
+
 from app.api.v1 import roles, customerTypes, employees, customers, auth, user, ticketCategories, tickets, departments, \
     faq, chat, audit, sla, evaluate, notification, cloudinary_signatures, department_assignments, ticketComments, ticketHistory, \
     templates, chatbot, analytics, department_analytics
