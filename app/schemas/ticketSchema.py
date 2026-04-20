@@ -77,6 +77,11 @@ class TicketReopen(BaseModel):
     reason: str
 
 
+class TicketCustomerUpdate(BaseModel):
+    title: Optional[str] = None
+    custom_fields: Optional[dict] = None
+
+
 class TicketListOut(BaseModel):
     items: List[TicketOut]
     meta: PaginationMeta
