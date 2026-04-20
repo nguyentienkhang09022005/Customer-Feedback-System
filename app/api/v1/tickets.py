@@ -12,6 +12,7 @@ from app.schemas.ticketSchema import (
     TicketReopen,
     TicketListOut,
     TicketFromTemplateCreate,
+    TicketCustomerUpdate,
 )
 from app.core.response import APIResponse
 from app.api.dependencies import get_db, get_current_user, get_current_employee, get_current_customer
@@ -127,13 +128,28 @@ def get_ticket(ticket_id: UUID, current_user: Human = Depends(get_current_user),
         return APIResponse(status=False, code=e.status_code, message=e.detail)
 
 
+@router.patch("/{ticket_id}/customer-update", response_model=APIResponse[TicketOut])
+def customer_update_ticket(
+    ticket_id: UUID,
+    data: TicketCustomerUpdate,
+    current_user: Human = Depends(get_current_customer),
+    db: Session = Depends(get_db)
+):
+    try:
+        customer = db.query(Customer).filter(Customer.id == current_user.id).first()
+        ticket = TicketService(db).update_ticket_customer(ticket_id, data, customer.id_customer)
+        return APIResponse(status=True, code=200, message="Cập nhật thành công", data=ticket)
+    except HTTPException as e:
+        return APIResponse(status=False, code=e.status_code, message=e.detail)
+
+
 @router.patch("/{ticket_id}", response_model=APIResponse[TicketOut], dependencies=[Depends(get_current_employee)])
 def update_ticket(ticket_id: UUID, data: dict, db: Session = Depends(get_db)):
     from app.schemas.ticketSchema import TicketUpdate
     try:
         from pydantic import BaseModel
         update_data = TicketUpdate(**data) if data else TicketUpdate()
-        ticket = TicketService(db).update_ticket(ticket_id, update_data)
+        ticket = TicketService(db).update_ticket(ticket_id, update_data, actor_type="employee")
         return APIResponse(status=True, code=200, message="Cập nhật thành công", data=ticket)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)

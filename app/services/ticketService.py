@@ -5,7 +5,7 @@ from app.repositories.ticketTemplateRepository import TicketTemplateRepository
 from app.repositories.slaRepository import SLAPolicyRepository
 from app.repositories.humanRepository import HumanRepository
 from app.models.ticket import Ticket, TicketTemplate
-from app.schemas.ticketSchema import TicketUpdate, TicketAssign, TicketFromTemplateCreate
+from app.schemas.ticketSchema import TicketUpdate, TicketAssign, TicketFromTemplateCreate, TicketCustomerUpdate
 from app.services.loadBalancer import LoadBalancer
 from app.core.constants import TicketStatusConstants
 from typing import List, Optional
@@ -160,14 +160,14 @@ class TicketService:
     def get_tickets_by_department(self, dept_id: uuid.UUID) -> List[Ticket]:
         return self.repo.get_by_department(dept_id)
 
-    def update_ticket(self, ticket_id: uuid.UUID, data: TicketUpdate, actor_id: uuid.UUID = None) -> Ticket:
+    def update_ticket(self, ticket_id: uuid.UUID, data: TicketUpdate, actor_id: uuid.UUID = None, actor_type: str = None) -> Ticket:
         ticket = self.repo.get_by_id(ticket_id)
         if not ticket:
             raise HTTPException(status_code=404, detail="Không tìm thấy ticket!")
         
         if ticket.is_deleted:
             raise HTTPException(status_code=400, detail="Ticket đã bị xóa!")
-
+        
         update_data = data.model_dump(exclude_unset=True)
 
         if "status" in update_data:
@@ -185,10 +185,60 @@ class TicketService:
         if "severity" in update_data and update_data["severity"] != ticket.severity:
             update_data["expired_date"] = self._calculate_expired_date(update_data["severity"])
 
+        if actor_type == "employee":
+            if "title" in update_data or "custom_fields" in update_data:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Employee chỉ được cập nhật trạng thái ticket!"
+                )
+
         for key, value in update_data.items():
             setattr(ticket, key, value)
 
         return self.repo.update(ticket)
+
+    def update_ticket_customer(self, ticket_id: uuid.UUID, data: TicketCustomerUpdate, customer_id: uuid.UUID) -> Ticket:
+        ticket = self.repo.get_by_id(ticket_id)
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Không tìm thấy ticket!")
+        
+        if ticket.is_deleted:
+            raise HTTPException(status_code=400, detail="Ticket đã bị xóa!")
+        
+        if ticket.status != "New":
+            raise HTTPException(status_code=400, detail="Chỉ được cập nhật khi ticket còn ở trạng thái New!")
+        
+        if ticket.id_customer != customer_id:
+            raise HTTPException(status_code=403, detail="Bạn không có quyền cập nhật ticket này!")
+        
+        update_data = data.model_dump(exclude_unset=True)
+        
+        if "custom_fields" in update_data and ticket.id_template:
+            self._validate_custom_fields_by_template_version(
+                update_data["custom_fields"],
+                ticket.id_template,
+                ticket.template_version
+            )
+        
+        for key, value in update_data.items():
+            setattr(ticket, key, value)
+        
+        return self.repo.update(ticket)
+
+    def _validate_custom_fields_by_template_version(self, custom_fields: dict, id_template: uuid.UUID, template_version: int):
+        template = self.template_repo.get_by_id_version(id_template, template_version)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template version không tồn tại!")
+        
+        fields_config = template.fields_config
+        required_fields = [
+            f["name"] for f in fields_config.get("fields", [])
+            if f.get("required", False)
+        ]
+        
+        for field_name in required_fields:
+            if field_name not in custom_fields:
+                raise HTTPException(status_code=400, detail=f"Thiếu field bắt buộc: {field_name}")
 
     def assign_ticket(self, ticket_id: uuid.UUID, data: TicketAssign) -> Ticket:
         ticket = self.repo.get_by_id(ticket_id)
