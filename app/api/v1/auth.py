@@ -95,10 +95,15 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 
     access_token, refresh_token = service.create_tokens(user)
 
-    # Preload customer data to Redis in background (non-blocking)
-    asyncio.create_task(
+    # Preload customer data to Redis (blocking) - ensures cache is ready before login returns
+    # This prevents race condition where message is sent before cache is populated
+    try:
         ChatbotService._preload_customer_data(user.id_customer)
-    )
+    except Exception as e:
+        # Log error but don't fail login - chatbot will fallback to DB queries
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Preload failed for {user.id_customer}, will fallback to DB: {e}")
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
@@ -138,6 +143,18 @@ def refresh(request: RefreshTokenRequest, db: Session = Depends(get_db)):
                     )
 
     access_token, refresh_token = tokens
+
+    # Extend cache TTL for chatbot after successful token refresh
+    try:
+        from app.models.human import Human
+        user_obj = db.query(Human).filter(Human.id == old_payload.get("sub")).first()
+        if user_obj and user_obj.id_customer:
+            ChatbotService._extend_cache_ttl(user_obj.id_customer)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to extend cache TTL on refresh: {e}")
+
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 

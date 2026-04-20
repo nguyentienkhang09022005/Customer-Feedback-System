@@ -81,7 +81,7 @@ class ChatbotService:
 
     def _get_customer_tickets(self, customer_id: uuid.UUID) -> List[Dict[str, Any]]:
         """Get customer's tickets for context."""
-        tickets = self.ticket_repo.get_by_customer(customer_id, include_closed=True)
+        tickets = self.ticket_repo.get_by_customer(customer_id, include_closed=True, limit=100)
         return [
             {
                 "ticket_id": str(t.id_ticket),
@@ -135,32 +135,63 @@ class ChatbotService:
 
         return data
 
+    # Track in-progress preloads to prevent duplicate work
+    _preload_in_progress: Dict[str, bool] = {}
+
     @staticmethod
-    def _preload_customer_data(customer_id: uuid.UUID) -> None:
-        """Preload customer data to Redis cache. Called as background task after login."""
+    def _preload_customer_data(customer_id: uuid.UUID, max_retries: int = 3, base_delay: float = 0.5) -> bool:
+        """Preload customer data to Redis cache with retry logic.
+
+        Returns True if successful, False otherwise.
+        """
         from app.db.session import SessionLocal
+        import time
 
-        db = SessionLocal()
+        customer_id_str = str(customer_id)
+
+        # Deduplication: skip if preload already in progress for this customer
+        if ChatbotService._preload_in_progress.get(customer_id_str):
+            return True
+
+        ChatbotService._preload_in_progress[customer_id_str] = True
+
         try:
-            service = ChatbotService(db)
+            last_error = None
+            for attempt in range(max_retries):
+                db = SessionLocal()
+                try:
+                    service = ChatbotService(db)
 
-            # Get and cache profile
-            profile = service._get_customer_data(customer_id)
-            profile_key = CHATBOT_CUSTOMER_PROFILE_KEY.format(customer_id=str(customer_id))
-            ttl = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
-            redis_service.set_with_expiry(profile_key, json.dumps(profile), ttl)
-            logger.info(f"Preloaded profile cache for customer {customer_id}")
+                    # Get and cache profile
+                    profile = service._get_customer_data(customer_id)
+                    profile_key = CHATBOT_CUSTOMER_PROFILE_KEY.format(customer_id=str(customer_id))
+                    ttl = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+                    redis_service.set_with_expiry(profile_key, json.dumps(profile), ttl)
+                    logger.info(f"Preloaded profile cache for customer {customer_id}")
 
-            # Get and cache tickets
-            tickets = service._get_customer_tickets(customer_id)
-            tickets_key = CHATBOT_CUSTOMER_TICKETS_KEY.format(customer_id=str(customer_id))
-            redis_service.set_with_expiry(tickets_key, json.dumps(tickets), ttl)
-            logger.info(f"Preloaded tickets cache for customer {customer_id}")
+                    # Get and cache tickets
+                    tickets = service._get_customer_tickets(customer_id)
+                    tickets_key = CHATBOT_CUSTOMER_TICKETS_KEY.format(customer_id=str(customer_id))
+                    redis_service.set_with_expiry(tickets_key, json.dumps(tickets), ttl)
+                    logger.info(f"Preloaded tickets cache for customer {customer_id}")
 
-        except Exception as e:
-            logger.error(f"Failed to preload customer data for {customer_id}: {str(e)}")
+                    return True  # Success
+
+                except Exception as e:
+                    last_error = e
+                    logger.warning(f"Preload attempt {attempt + 1}/{max_retries} failed for {customer_id}: {e}")
+                    if attempt < max_retries - 1:
+                        time.sleep(base_delay * (2 ** attempt))  # Exponential backoff
+                finally:
+                    db.close()
+
+            # All retries failed
+            logger.error(f"PRELOAD FAILED ALL {max_retries} RETRIES for {customer_id}: {last_error}")
+            return False
+
         finally:
-            db.close()
+            # Always cleanup the in-progress flag
+            ChatbotService._preload_in_progress.pop(customer_id_str, None)
 
     @staticmethod
     def _invalidate_customer_cache(customer_id: uuid.UUID) -> bool:
@@ -171,6 +202,25 @@ class ChatbotService:
         redis_service.delete(profile_key)
         redis_service.delete(tickets_key)
         logger.info(f"Invalidated cache for customer {customer_id}")
+        return True
+
+    @staticmethod
+    def _extend_cache_ttl(customer_id: uuid.UUID) -> bool:
+        """Extend cache TTL when token is refreshed. Prevents cache from expiring before token."""
+        ttl = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        profile_key = CHATBOT_CUSTOMER_PROFILE_KEY.format(customer_id=str(customer_id))
+        tickets_key = CHATBOT_CUSTOMER_TICKETS_KEY.format(customer_id=str(customer_id))
+
+        # Re-set with new TTL (Redis will update expiry)
+        profile_data = redis_service.get(profile_key)
+        tickets_data = redis_service.get(tickets_key)
+
+        if profile_data:
+            redis_service.set_with_expiry(profile_key, profile_data, ttl)
+        if tickets_data:
+            redis_service.set_with_expiry(tickets_key, tickets_data, ttl)
+
+        logger.info(f"Extended cache TTL for customer {customer_id}")
         return True
 
     def _get_public_data(self) -> Dict[str, Any]:
