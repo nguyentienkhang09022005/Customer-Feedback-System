@@ -93,3 +93,26 @@ class SentimentConstants:
     NEGATIVE_THRESHOLD = -0.3
     COMPARE_PREVIOUS_MONTH = 1
     COMPARE_SAME_MONTH_LAST_YEAR = 12
+
+
+class AppointmentStatus(str, Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
+    COMPLETED = "completed"
+
+
+class AppointmentConstants:
+    VALID_STATUSES: List[str] = [
+        "pending",
+        "accepted",
+        "rejected",
+        "cancelled",
+        "completed"
+    ]
+
+    CANCELABLE_STATUSES: List[str] = [
+        "pending",
+        "accepted"
+    ]
