@@ -97,13 +97,16 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 
     # Preload customer data to Redis (blocking) - ensures cache is ready before login returns
     # This prevents race condition where message is sent before cache is populated
+    # Only pre-load for Customer type (not Employee) since only customers have id_customer
     try:
-        ChatbotService._preload_customer_data(user.id_customer)
+        from app.models.human import Customer
+        if isinstance(user, Customer) and user.id_customer:
+            ChatbotService._preload_customer_data(user.id_customer)
     except Exception as e:
         # Log error but don't fail login - chatbot will fallback to DB queries
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Preload failed for {user.id_customer}, will fallback to DB: {e}")
+        logger.error(f"Preload failed for {getattr(user, 'id_customer', None)}, will fallback to DB: {e}")
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 

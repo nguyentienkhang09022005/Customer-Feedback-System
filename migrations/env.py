@@ -17,6 +17,7 @@ from app.models.ticketHistory import TicketHistory
 from app.models.interaction import Message, Attachment, Evaluate, Notification
 from app.models.system import AuditLog, FAQArticle
 from app.models.department import Department
+from app.models.appointment import Appointment
 from app.db.base import Base
 
 config = context.config
