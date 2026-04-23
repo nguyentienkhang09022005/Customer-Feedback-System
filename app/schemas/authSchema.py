@@ -52,6 +52,10 @@ class UserResponse(BaseModel):
     status: str
     type: Optional[str]
     avatar: Optional[str]
+    role_name: Optional[str] = None
+    id_department: Optional[UUID] = None
+    employee_code: Optional[str] = None
+    job_title: Optional[str] = None
     class Config:
         from_attributes = True
 
