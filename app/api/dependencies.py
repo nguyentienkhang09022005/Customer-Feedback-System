@@ -95,3 +95,14 @@ def get_current_admin(
             detail="Admin access required!"
         )
     return current_employee
+
+
+def get_current_manager(
+        current_employee: Employee = Depends(get_current_employee)
+) -> Employee:
+    if current_employee.role_name not in ["Admin", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Manager access required!"
+        )
+    return current_employee
