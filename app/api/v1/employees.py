@@ -89,3 +89,17 @@ def manager_update_employee(
         return APIResponse(status=True, code=200, message="Cập nhật thành công", data=emp)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
+
+@router.get("/department/{dept_id}/members", response_model=APIResponse[List[EmployeeOut]])
+def get_department_members(
+    dept_id: UUID,
+    current_user: Employee = Depends(get_current_manager),
+    db: Session = Depends(get_db)
+):
+    """Manager: xem danh sách thành viên trong phòng ban"""
+    if current_user.role_name != "Admin" and current_user.id_department != dept_id:
+        return APIResponse(status=False, code=403, message="Bạn chỉ có quyền xem thành viên trong phòng ban của mình!")
+
+    repo = EmployeeRepository(db)
+    members = repo.get_department_all_members(dept_id)
+    return APIResponse(status=True, code=200, message="Thành công", data=members)
