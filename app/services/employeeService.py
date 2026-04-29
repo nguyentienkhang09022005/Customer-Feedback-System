@@ -44,6 +44,25 @@ class EmployeeService:
             setattr(emp, key, value)
         return self.repo.update(emp)
 
+    def manager_update_employee(self, emp_id: str, data: EmployeeUpdate, current_manager: Employee):
+        emp = self.repo.get_by_id(emp_id)
+        if not emp:
+            raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên")
+
+        # Manager can only update employees in their department (Admin bypasses)
+        if current_manager.role_name != "Admin" and emp.id_department != current_manager.id_department:
+            raise HTTPException(status_code=403, detail="Bạn chỉ có quyền cập nhật nhân viên trong phòng ban của mình!")
+
+        # Managers can update: job_title, status, phone
+        allowed_fields = {"job_title", "status", "phone", "avatar"}
+        update_dict = data.dict(exclude_unset=True)
+
+        for key, value in update_dict.items():
+            if key in allowed_fields:
+                setattr(emp, key, value)
+
+        return self.repo.update(emp)
+
     def delete_employee(self, emp_id: str):
         emp = self.repo.get_by_id(emp_id)
         if not emp: raise HTTPException(status_code=404, detail="Không tìm thấy")

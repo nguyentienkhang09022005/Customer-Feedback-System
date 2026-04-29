@@ -75,3 +75,17 @@ def get_department_workload(
         })
 
     return APIResponse(status=True, code=200, message="Thành công", data=result)
+
+@router.patch("/manager/{emp_id}", response_model=APIResponse[EmployeeOut])
+def manager_update_employee(
+    emp_id: str,
+    data: EmployeeUpdate,
+    current_user: Employee = Depends(get_current_manager),
+    db: Session = Depends(get_db)
+):
+    """Manager: cập nhật thông tin nhân viên trong phòng ban"""
+    try:
+        emp = EmployeeService(db).manager_update_employee(emp_id, data, current_user)
+        return APIResponse(status=True, code=200, message="Cập nhật thành công", data=emp)
+    except HTTPException as e:
+        return APIResponse(status=False, code=e.status_code, message=e.detail)
