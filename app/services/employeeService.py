@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
 from fastapi import HTTPException
+import uuid
 from app.repositories.employeeRepository import EmployeeRepository
 from app.models.human import Employee
 from app.schemas.employeeSchema import EmployeeCreate, EmployeeUpdate
@@ -47,3 +48,7 @@ class EmployeeService:
         emp = self.repo.get_by_id(emp_id)
         if not emp: raise HTTPException(status_code=404, detail="Không tìm thấy")
         self.repo.delete(emp)
+
+    def get_department_workload(self, dept_id: uuid.UUID):
+        """Lấy workload của tất cả nhân viên trong phòng ban"""
+        return self.repo.get_available_employees_with_ticket_counts(dept_id)
