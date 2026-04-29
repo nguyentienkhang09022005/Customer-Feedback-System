@@ -15,8 +15,8 @@ from app.schemas.ticketSchema import (
     TicketCustomerUpdate,
 )
 from app.core.response import APIResponse
-from app.api.dependencies import get_db, get_current_user, get_current_employee, get_current_customer
-from app.models.human import Human, Customer
+from app.api.dependencies import get_db, get_current_user, get_current_employee, get_current_customer, get_current_manager, get_current_admin
+from app.models.human import Human, Customer, Employee
 from app.models.ticket import Ticket
 
 router = APIRouter(prefix="/tickets", tags=["Ticket Management"])
@@ -218,3 +218,38 @@ def reopen_ticket_endpoint(
         return APIResponse(status=True, code=200, message="Mở lại ticket thành công", data=ticket)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
+
+
+@router.get("/manager/department/{dept_id}", response_model=APIResponse[TicketListOut])
+def get_manager_department_tickets(
+    dept_id: UUID,
+    current_user: Employee = Depends(get_current_manager),
+    db: Session = Depends(get_db)
+):
+    """Manager: xem tất cả ticket trong phòng ban của mình"""
+    # Verify manager owns this department
+    if current_user.role_name != "Admin" and current_user.id_department != dept_id:
+        return APIResponse(status=False, code=403, message="Bạn chỉ có quyền xem ticket trong phòng ban của mình!")
+
+    tickets = TicketService(db).get_tickets_by_department(dept_id)
+    return APIResponse(status=True, code=200, message="Thành công", data={"items": tickets, "meta": _build_meta(tickets)})
+
+
+@router.post("/manager/assign/{ticket_id}", response_model=APIResponse[TicketOut])
+def manager_assign_ticket(
+    ticket_id: UUID,
+    data: TicketAssign,
+    current_user: Employee = Depends(get_current_manager),
+    db: Session = Depends(get_db)
+):
+    """Manager: gán ticket cho nhân viên trong phòng ban"""
+    # Verify ticket belongs to manager's department
+    ticket = db.query(Ticket).filter(Ticket.id_ticket == ticket_id).first()
+    if not ticket:
+        return APIResponse(status=False, code=404, message="Ticket không tồn tại!")
+
+    if current_user.role_name != "Admin" and ticket.id_department != current_user.id_department:
+        return APIResponse(status=False, code=403, message="Bạn chỉ có quyền gán ticket trong phòng ban của mình!")
+
+    ticket = TicketService(db).assign_ticket(ticket_id, data)
+    return APIResponse(status=True, code=200, message="Giao ticket thành công", data=ticket)
