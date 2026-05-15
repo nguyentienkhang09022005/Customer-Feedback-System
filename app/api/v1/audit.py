@@ -14,6 +14,16 @@ router = APIRouter(
     dependencies=[Depends(get_current_admin)]
 )
 
+@router.get("/export", response_model=APIResponse[List[dict]])
+def export_audit_logs(
+        log_type: Optional[str] = None,
+        db: Session = Depends(get_db)
+):
+    service = AuditLogService(db)
+    logs = service.export_to_csv(log_type=log_type)
+    return APIResponse(status=True, code=200, message="Xuất dữ liệu thành công!", data=logs)
+
+
 @router.get("", response_model=APIResponse[AuditLogListOut])
 def get_all_audit_logs(
         page: int = Query(1, ge=1),

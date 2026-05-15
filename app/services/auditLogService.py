@@ -56,3 +56,25 @@ class AuditLogService:
         logs = query.order_by(AuditLog.created_at.desc()).offset(offset).limit(limit).all()
 
         return logs, total
+
+    def export_to_csv(self, log_type: str = None) -> List[dict]:
+        query = self.db.query(AuditLog)
+
+        if log_type:
+            query = query.filter(AuditLog.log_type == log_type)
+
+        logs = query.order_by(AuditLog.created_at.desc()).all()
+
+        return [
+            {
+                "id": str(log.id_log),
+                "action": log.action,
+                "user_id": str(log.id_employee) if log.id_employee else None,
+                "entity_type": log.log_type,
+                "entity_id": str(log.id_reference) if log.id_reference else None,
+                "ip_address": None,
+                "user_agent": None,
+                "created_at": log.created_at.isoformat() if log.created_at else None,
+            }
+            for log in logs
+        ]

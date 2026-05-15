@@ -82,3 +82,33 @@ class TicketRepository:
     def delete(self, ticket: Ticket):
         self.db.delete(ticket)
         self.db.commit()
+
+    def get_by_ids(self, ticket_ids: List[uuid.UUID]) -> List[Ticket]:
+        return self._base_query().filter(Ticket.id_ticket.in_(ticket_ids)).all()
+
+    def update_status_bulk(self, ticket_ids: List[uuid.UUID], status: str) -> int:
+        result = self.db.query(Ticket).filter(
+            Ticket.id_ticket.in_(ticket_ids),
+            Ticket.is_deleted == False
+        ).update({Ticket.status: status}, synchronize_session=False)
+        self.db.commit()
+        return result
+
+    def assign_employee_bulk(self, ticket_ids: List[uuid.UUID], employee_id: uuid.UUID) -> int:
+        result = self.db.query(Ticket).filter(
+            Ticket.id_ticket.in_(ticket_ids),
+            Ticket.is_deleted == False
+        ).update({Ticket.id_employee: employee_id}, synchronize_session=False)
+        self.db.commit()
+        return result
+
+    def delete_bulk(self, ticket_ids: List[uuid.UUID]) -> int:
+        result = self.db.query(Ticket).filter(
+            Ticket.id_ticket.in_(ticket_ids),
+            Ticket.is_deleted == False
+        ).update({
+            Ticket.is_deleted: True,
+            Ticket.deleted_at: datetime.utcnow()
+        }, synchronize_session=False)
+        self.db.commit()
+        return result

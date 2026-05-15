@@ -89,6 +89,7 @@ class Ticket(Base):
     history = relationship("TicketHistory", back_populates="ticket", cascade="all, delete-orphan")
     template = relationship("TicketTemplate", foreign_keys=[id_template, template_version], viewonly=True)
     appointments = relationship("Appointment", back_populates="ticket", cascade="all, delete-orphan")
+    tags = relationship("Tag", secondary="ticket_tags", back_populates="tickets")
 
     @property
     def is_overdue(self) -> bool:

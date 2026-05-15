@@ -36,9 +36,18 @@ class EmployeeService:
     def get_all(self):
         return self.repo.get_all()
 
-    def update_employee(self, emp_id: str, data: EmployeeUpdate):
+    def get_by_id(self, emp_id: str):
         emp = self.repo.get_by_id(emp_id)
         if not emp: raise HTTPException(status_code=404, detail="Không tìm thấy")
+        return emp
+
+    def update_employee(self, emp_id: str, data: EmployeeUpdate, current_user: Employee = None):
+        emp = self.repo.get_by_id(emp_id)
+        if not emp: raise HTTPException(status_code=404, detail="Không tìm thấy")
+
+        # Admin cannot modify another Admin
+        if current_user and emp.role_name == "Admin" and current_user.role_name != "Admin":
+            raise HTTPException(status_code=403, detail="Bạn không có quyền cập nhật tài khoản Admin khác!")
 
         for key, value in data.dict(exclude_unset=True).items():
             setattr(emp, key, value)
@@ -48,6 +57,10 @@ class EmployeeService:
         emp = self.repo.get_by_id(emp_id)
         if not emp:
             raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên")
+
+        # Admin cannot modify another Admin
+        if current_manager.role_name != "Admin" and emp.role_name == "Admin":
+            raise HTTPException(status_code=403, detail="Bạn không có quyền cập nhật tài khoản Admin!")
 
         # Manager can only update employees in their department (Admin bypasses)
         if current_manager.role_name != "Admin" and emp.id_department != current_manager.id_department:
@@ -63,9 +76,14 @@ class EmployeeService:
 
         return self.repo.update(emp)
 
-    def delete_employee(self, emp_id: str):
+    def delete_employee(self, emp_id: str, current_user: Employee = None):
         emp = self.repo.get_by_id(emp_id)
         if not emp: raise HTTPException(status_code=404, detail="Không tìm thấy")
+
+        # Admin cannot delete another Admin
+        if current_user and emp.role_name == "Admin" and current_user.role_name != "Admin":
+            raise HTTPException(status_code=403, detail="Bạn không có quyền xóa tài khoản Admin khác!")
+
         self.repo.delete(emp)
 
     def get_department_workload(self, dept_id: uuid.UUID):

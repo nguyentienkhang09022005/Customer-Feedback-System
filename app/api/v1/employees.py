@@ -24,18 +24,26 @@ def create_employee(data: EmployeeCreate, db: Session = Depends(get_db)):
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
 
+@router.get("/{emp_id}", response_model=APIResponse[EmployeeOut], dependencies=[Depends(get_current_employee)])
+def get_employee_by_id(emp_id: str, db: Session = Depends(get_db)):
+    """Tìm nhân viên theo ID"""
+    emp = EmployeeService(db).get_by_id(emp_id)
+    if not emp:
+        return APIResponse(status=False, code=404, message="Không tìm thấy nhân viên")
+    return APIResponse(status=True, code=200, message="Thành công", data=emp)
+
 @router.patch("/{emp_id}", response_model=APIResponse[EmployeeOut], dependencies=[Depends(get_current_employee)])
-def update_employee(emp_id: str, data: EmployeeUpdate, db: Session = Depends(get_db)):
+def update_employee(emp_id: str, data: EmployeeUpdate, current_user: Employee = Depends(get_current_employee), db: Session = Depends(get_db)):
     try:
-        emp = EmployeeService(db).update_employee(emp_id, data)
+        emp = EmployeeService(db).update_employee(emp_id, data, current_user)
         return APIResponse(status=True, code=200, message="Cập nhật thành công", data=emp)
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)
 
 @router.delete("/{emp_id}", response_model=APIResponse, dependencies=[Depends(get_current_employee)])
-def delete_employee(emp_id: str, db: Session = Depends(get_db)):
+def delete_employee(emp_id: str, current_user: Employee = Depends(get_current_employee), db: Session = Depends(get_db)):
     try:
-        EmployeeService(db).delete_employee(emp_id)
+        EmployeeService(db).delete_employee(emp_id, current_user)
         return APIResponse(status=True, code=200, message="Xóa thành công")
     except HTTPException as e:
         return APIResponse(status=False, code=e.status_code, message=e.detail)

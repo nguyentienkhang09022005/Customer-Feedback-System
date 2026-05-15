@@ -27,5 +27,6 @@ class EmployeeUpdate(BaseModel):
     phone: Optional[str] = Field(None, pattern=r"^[0-9]{10,15}$")
     id_department: Optional[UUID] = None
     job_title: Optional[str] = None
+    role_name: Optional[str] = None
     status: Optional[HumanStatusEnum] = None
     avatar: Optional[str] = None
