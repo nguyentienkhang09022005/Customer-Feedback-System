@@ -1,6 +1,8 @@
+from uuid import UUID
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.repositories.tagRepository import TagRepository
+from app.repositories.ticketRepository import TicketRepository
 from app.models.tag import Tag
 from app.schemas.admin.tag import TagCreate, TagUpdate
 from typing import List
@@ -48,3 +50,26 @@ class TagService:
         if not tag:
             raise HTTPException(status_code=404, detail="Tag not found!")
         self.repo.delete(tag)
+
+    # --- Ticket-Tag assignment ---
+
+    def get_tags_by_ticket(self, ticket_id: UUID) -> List[Tag]:
+        ticket_repo = TicketRepository(self.db)
+        if not ticket_repo.get_by_id(ticket_id):
+            raise HTTPException(status_code=404, detail="Ticket not found!")
+        return self.repo.get_tags_by_ticket(ticket_id)
+
+    def assign_tag_to_ticket(self, ticket_id: UUID, tag_id: str) -> None:
+        ticket_repo = TicketRepository(self.db)
+        if not ticket_repo.get_by_id(ticket_id):
+            raise HTTPException(status_code=404, detail="Ticket not found!")
+        if not self.repo.get_by_id(tag_id):
+            raise HTTPException(status_code=404, detail="Tag not found!")
+        if self.repo.is_tag_assigned(ticket_id, tag_id):
+            raise HTTPException(status_code=400, detail="Tag already assigned to this ticket!")
+        self.repo.assign_tag_to_ticket(ticket_id, tag_id)
+
+    def remove_tag_from_ticket(self, ticket_id: UUID, tag_id: str) -> None:
+        if not self.repo.is_tag_assigned(ticket_id, tag_id):
+            raise HTTPException(status_code=404, detail="Tag is not assigned to this ticket!")
+        self.repo.remove_tag_from_ticket(ticket_id, tag_id)
