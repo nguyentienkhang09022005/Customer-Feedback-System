@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(pip install *)",
+      "Bash(python -m pytest tests/ --collect-only)",
+      "Bash(python -m pytest tests/ -v --tb=line)",
+      "Bash(python -m pytest tests/test_auth.py::TestAuthentication::test_authenticate_user_success -v)",
+      "Bash(python -c \"from app.models.human import Human; from app.models.ticket import Ticket; from app.models.interaction import Message; print\\('Imports OK'\\)\")",
+      "Bash(python -c \"from app.core.security import get_password_hash; print\\(get_password_hash\\('321321'\\)\\)\")",
+      "Bash(python -m pytest tests/ --tb=no -q)",
+      "Bash(python -m pytest tests/ --collect-only -q)",
+      "Bash(pytest tests/test_tag.py -v --tb=short)",
+      "Bash(python -c \"from app.db.base import Base; print\\('OK'\\)\")",
+      "Bash(pip show *)",
+      "Bash(set PYTHONPATH=.)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_tag.py -v --tb=short)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/ --tb=no -q)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_ticket_category.py::TestCategoryRetrieval::test_get_category_by_id -v --tb=long)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_tag.py -v --tb=no)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/ --co -q)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_file.py --tb=short)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_faq.py::TestFAQArticleCreation::test_create_article_success --tb=short)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_customer.py tests/test_employee.py tests/test_notification.py -v --tb=no -q)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_auth.py tests/test_department.py tests/test_sla.py tests/test_tag.py tests/test_load_balancer.py tests/test_appointment.py tests/test_chat.py tests/test_chatbot.py tests/test_evaluate.py --tb=no -q)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_ticket_category.py --tb=short)",
+      "Bash(git checkout *)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_notification.py tests/test_escalation.py tests/test_audit_log.py tests/test_customer.py tests/test_employee.py tests/test_faq.py tests/test_department_assignment.py tests/test_ticket_template.py --tb=no -q)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_notification.py tests/test_escalation.py tests/test_audit_log.py --tb=no -q)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_notification.py tests/test_escalation.py tests/test_audit_log.py --tb=short -q)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_escalation.py::TestEscalateToManager::test_escalate_to_manager_category_no_department -v)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_notification.py::TestNotificationEdgeCases::test_unicode_content -v)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_customer.py tests/test_employee.py tests/test_faq.py tests/test_department_assignment.py tests/test_ticket_template.py --tb=no -q)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_customer.py -x --tb=short)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_ticket_category.py --tb=no -q)",
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_ticket_category.py::TestCategoryUpdate::test_update_category_name_only --tb=short)"
+    ]
+  }
+}
