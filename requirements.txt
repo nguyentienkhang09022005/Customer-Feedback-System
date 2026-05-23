@@ -22,3 +22,8 @@ redis
 upstash-redis>=1.0.0
 httpx
 apscheduler
+
+# Testing
+pytest
+pytest-asyncio
+pytest-cov
