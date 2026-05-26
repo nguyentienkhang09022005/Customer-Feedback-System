@@ -16,6 +16,12 @@ import uuid
 # Import Base from the application's db module
 from app.db.base import Base
 
+# Mock magic module before importing any services that use python-magic
+# This must happen at session start before any service modules are loaded
+import sys
+if 'magic' not in sys.modules:
+    sys.modules['magic'] = MagicMock()
+
 # Import ALL models to ensure relationships are resolved
 # This is critical for SQLAlchemy to properly set up foreign key relationships
 from app.models.human import Human, Employee, Customer, Role, CustomerType

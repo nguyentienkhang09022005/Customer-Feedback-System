@@ -34,10 +34,21 @@ class Attachment(Base):
     attach_type = Column(String(50))
     url = Column(String(500), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # id_reference dùng để lưu ID của bảng khác nên cũng phải là UUID
     id_reference = Column(UUID(as_uuid=True))
     id_uploader = Column(UUID(as_uuid=True), ForeignKey("humans.id", ondelete="SET NULL"))
+
+    # Optional fields: support file metadata, cloudinary, and soft-delete
+    is_deleted = Column(Boolean, default=False)
+    is_permanent = Column(Boolean, default=False)
+    reference_type = Column(String(50))
+    storage_type = Column(String(20))
+    public_id = Column(String(255))
+    file_size = Column(Integer)
+    thumbnail_url = Column(String(500))
+    attach_extension = Column(String(20))
 
 
 class Evaluate(Base):

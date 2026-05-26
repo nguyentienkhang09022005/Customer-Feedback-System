@@ -18,7 +18,7 @@ class FAQService:
         self.category_repo = TicketCategoryRepository(db)
 
     def create_article(self, data: FAQCreate, author_id: uuid.UUID) -> FAQArticle:
-        category = self.category_repo.get_by_id(str(data.id_category))
+        category = self.category_repo.get_by_id(data.id_category)
         if not category:
             raise HTTPException(status_code=404, detail="Không tìm thấy danh mục!")
 
@@ -90,7 +90,7 @@ class FAQService:
         update_data = data.model_dump(exclude_unset=True)
 
         if "id_category" in update_data and update_data["id_category"] != article.id_category:
-            category = self.category_repo.get_by_id(str(update_data["id_category"]))
+            category = self.category_repo.get_by_id(update_data["id_category"])
             if not category:
                 raise HTTPException(status_code=404, detail="Không tìm thấy danh mục!")
 
