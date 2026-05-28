@@ -18,6 +18,7 @@ Test flow:
 import pytest
 from unittest.mock import patch, MagicMock
 from uuid import uuid4
+from sqlalchemy import func, and_
 
 from app.services.loadBalancer import LoadBalancer
 from app.models.human import Employee
@@ -114,47 +115,49 @@ class TestLoadBalancerSelection:
         sample_department
     ):
         """Test that employee at max capacity is not selected."""
-        # Create employee at capacity
+        # Create employee at capacity with highest CSAT
         emp_at_capacity = Employee(
             id=uuid4(),
-            username="emp_full",
-            email="full@test.com",
+            username="emp_full_v2",
+            email="fullv2@test.com",
             password_hash="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5eWvqZYxC3O3q",
             first_name="Full",
             last_name="Capacity",
-            phone="3333333333",
+            phone="3333333332",
             type="employee",
             id_employee=uuid4(),
             id_department=sample_department.id_department,
-            employee_code="EMP_FULL",
+            employee_code="EMP_FULL2",
             max_ticket_capacity=3,
-            csat_score=5.0,  # Highest but at capacity
+            csat_score=5.0,  # Highest CSAT but at capacity
             role_name="Employee"
         )
 
-        # Create employee with space
+        # Create employee with space - lower CSAT than emp_at_capacity
         emp_available = Employee(
             id=uuid4(),
-            username="emp_space",
-            email="space@test.com",
+            username="emp_space_v2",
+            email="spacev2@test.com",
             password_hash="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5eWvqZYxC3O3q",
             first_name="Has",
             last_name="Space",
-            phone="4444444444",
+            phone="4444444442",
             type="employee",
             id_employee=uuid4(),
             id_department=sample_department.id_department,
-            employee_code="EMP_SPACE",
+            employee_code="EMP_SPACE2",
             max_ticket_capacity=3,
-            csat_score=3.0,  # Lower but has space
+            csat_score=2.0,  # Lower CSAT to ensure deterministic selection
             role_name="Employee"
         )
 
         db_session.add(emp_at_capacity)
         db_session.add(emp_available)
+        db_session.commit()
 
         # Add tickets to emp_at_capacity to reach capacity
         from app.models.ticket import Ticket
+        active_statuses = ["New", "In Progress", "Pending", "On Hold"]
         for i in range(3):
             ticket = Ticket(
                 id_ticket=uuid4(),
@@ -167,13 +170,38 @@ class TestLoadBalancerSelection:
 
         db_session.commit()
 
+        # Verify ticket counts before testing
+        from app.models.ticket import Ticket
+        from sqlalchemy import func, and_
+        results_before = db_session.query(
+            Employee,
+            func.count(Ticket.id_ticket)
+        ).outerjoin(
+            Ticket,
+            and_(
+                Ticket.id_employee == Employee.id_employee,
+                Ticket.status.in_(["New", "In Progress", "Pending", "On Hold"])
+            )
+        ).filter(
+            Employee.id_department == sample_department.id_department,
+            Employee.username.in_(["emp_full_v2", "emp_space_v2"])
+        ).group_by(Employee.id_employee).all()
+
+        for emp, count in results_before:
+            if emp.username == "emp_full_v2":
+                assert count == 3, f"emp_at_capacity has {count} tickets, expected 3"
+            if emp.username == "emp_space_v2":
+                assert count == 0, f"emp_available has {count} tickets, expected 0"
+
         lb = LoadBalancer(db_session)
 
         employee = lb.get_best_employee_for_department(sample_department.id_department)
 
         assert employee is not None
-        # Should select emp_available, not emp_at_capacity
+        # emp_at_capacity is skipped because at capacity (3/3)
+        # emp_available should be selected since it's the only remaining option
         assert employee.id_employee == emp_available.id_employee
+        assert employee.csat_score == 2.0  # emp_available with lower CSAT but capacity available
 
 
 # ============================================================================

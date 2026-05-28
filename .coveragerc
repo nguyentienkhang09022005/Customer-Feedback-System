@@ -1,0 +1,49 @@
+[run]
+# Coverage configuration for Customer Feedback System
+# Run with: pytest --cov=app --cov-report=xml --cov-report=term
+# View HTML report: coverage html && open htmlcov/index.html
+
+branch = True
+parallel = True
+
+# Exclude third-party, generated, and test infrastructure from coverage
+omit =
+    */.venv/*
+    */__pycache__/*
+    */tests/*
+    */migrations/*
+    */main.py
+    */seed_faq_data.py
+    */create_db.py
+
+# Per-module source roots
+source = app
+
+[report]
+# Precision: one decimal place
+precision = 1
+show_missing = True
+skip_covered = False
+
+# Exclude from report (known non-covered)
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    pass  # no-op / stub
+    ...   # typing ellipsis
+
+[html]
+directory = htmlcov
+
+[xml]
+output = coverage.xml
+
+[paths]
+# Allow coverage to merge runs from multiple sources
+source =
+    app/
+    .venv/lib/python*/site-packages/app/

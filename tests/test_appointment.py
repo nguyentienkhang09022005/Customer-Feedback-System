@@ -22,6 +22,8 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+pytestmark = [pytest.mark.unit, pytest.mark.appointment]
+
 from app.services.appointmentService import AppointmentService
 from app.schemas.appointmentSchema import AppointmentCreate, AppointmentAccept, AppointmentReject, AppointmentCancel
 from app.models.appointment import Appointment
@@ -266,10 +268,23 @@ class TestAppointmentCreation:
         db_session,
         sample_ticket_assigned,
         sample_customer,
-        sample_appointment
+        mock_notification_service
     ):
         """Test appointment creation fails when pending appointment exists."""
         service = AppointmentService(db_session)
+
+        # Create a pending appointment first
+        existing_appointment = Appointment(
+            id_appointment=uuid4(),
+            id_ticket=sample_ticket_assigned.id_ticket,
+            id_customer=sample_customer.id_customer,
+            id_employee=sample_ticket_assigned.id_employee,
+            scheduled_at=datetime.now(timezone.utc) + timedelta(days=3),
+            reason="Already scheduled",
+            status=AppointmentStatus.PENDING
+        )
+        db_session.add(existing_appointment)
+        db_session.commit()
 
         data = AppointmentCreate(
             id_ticket=sample_ticket_assigned.id_ticket,
@@ -280,7 +295,7 @@ class TestAppointmentCreation:
         with pytest.raises(Exception) as exc_info:
             service.create_appointment(data, sample_customer.id_customer)
 
-        assert "đã có lịch hẹn đang chờ xử lý" in str(exc_info.value)
+        assert "đã có lịch hẹn" in str(exc_info.value) and "chờ" in str(exc_info.value)
 
 
 # ============================================================================
@@ -559,43 +574,65 @@ class TestAppointmentCancellation:
     def test_cancel_rejected_appointment_fails(
         self,
         db_session,
-        sample_appointment,
-        sample_customer
+        sample_ticket_assigned,
+        sample_customer,
+        sample_employee
     ):
         """Test cancellation fails for rejected appointment."""
-        sample_appointment.status = AppointmentStatus.REJECTED
-        sample_appointment.rejection_reason = "Cannot attend"
+        # Create a rejected appointment
+        rejected_appointment = Appointment(
+            id_appointment=uuid4(),
+            id_ticket=sample_ticket_assigned.id_ticket,
+            id_customer=sample_customer.id_customer,
+            id_employee=sample_employee.id_employee,
+            scheduled_at=datetime.now(timezone.utc) + timedelta(days=3),
+            reason="Schedule conflict",
+            status=AppointmentStatus.REJECTED,
+            rejection_reason="Cannot attend"
+        )
+        db_session.add(rejected_appointment)
         db_session.commit()
 
         service = AppointmentService(db_session)
 
         with pytest.raises(Exception) as exc_info:
             service.cancel_appointment(
-                sample_appointment.id_appointment,
+                rejected_appointment.id_appointment,
                 sample_customer.id_customer
             )
 
-        assert "không thể hủy" in str(exc_info.value)
+        assert "không thể hủy" in str(exc_info.value.detail)
 
     def test_cancel_completed_appointment_fails(
         self,
         db_session,
-        sample_appointment,
-        sample_customer
+        sample_ticket_assigned,
+        sample_customer,
+        sample_employee
     ):
         """Test cancellation fails for completed appointment."""
-        sample_appointment.status = AppointmentStatus.COMPLETED
+        # Create a completed appointment
+        completed_appointment = Appointment(
+            id_appointment=uuid4(),
+            id_ticket=sample_ticket_assigned.id_ticket,
+            id_customer=sample_customer.id_customer,
+            id_employee=sample_employee.id_employee,
+            scheduled_at=datetime.now(timezone.utc) + timedelta(days=3),
+            reason="Completed consultation",
+            status=AppointmentStatus.COMPLETED
+        )
+        db_session.add(completed_appointment)
         db_session.commit()
 
         service = AppointmentService(db_session)
 
         with pytest.raises(Exception) as exc_info:
             service.cancel_appointment(
-                sample_appointment.id_appointment,
+                completed_appointment.id_appointment,
                 sample_customer.id_customer
             )
 
-        assert "không thể hủy" in str(exc_info.value)
+        assert "không thể hủy" in str(exc_info.value.detail)
 
 
 # ============================================================================

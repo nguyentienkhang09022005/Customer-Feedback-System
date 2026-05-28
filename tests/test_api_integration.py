@@ -18,6 +18,8 @@ import json
 
 from fastapi.testclient import TestClient
 
+pytestmark = [pytest.mark.integration, pytest.mark.api]
+
 
 # ============================================================================
 # Test Database and App Setup
@@ -70,6 +72,7 @@ def employee_token(sample_employee):
 
 class TestAuthAPI:
     """Tests for authentication API endpoints."""
+    __test__ = True
 
     def test_login_success(self, test_client, sample_customer):
         """Test successful login via API."""

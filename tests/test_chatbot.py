@@ -22,6 +22,8 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from datetime import datetime
 from uuid import uuid4
+
+pytestmark = [pytest.mark.unit, pytest.mark.chatbot]
 import json
 
 from app.services.chatbotService import ChatbotService

@@ -22,6 +22,8 @@ import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
 from uuid import uuid4
+
+pytestmark = [pytest.mark.unit, pytest.mark.auth]
 import json
 
 from app.services.authService import AuthService

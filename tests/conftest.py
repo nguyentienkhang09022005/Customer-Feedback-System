@@ -2,8 +2,15 @@
 Pytest configuration and fixtures for Customer Feedback System tests.
 
 This module provides shared fixtures and test configuration for the entire test suite.
+Supports two modes:
+  - SQLite in-process (default): fast, zero-dependency, mirrors existing behaviour.
+  - PostgreSQL (when TEST_DATABASE_URL env var is set): production-like for integration tests.
+
+Run with PostgreSQL:
+    TEST_DATABASE_URL="postgresql://user:pass@localhost:5432/testdb" pytest tests/
 """
 
+import os
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 from sqlalchemy import create_engine
@@ -56,26 +63,46 @@ from app.core.security import get_password_hash
 SAMPLE_PASSWORD_HASH = "$2b$12$3pX9sevRZHfI0Vkg8gVzBOX8pUoIx811eVHSnR7jRi3QnZhsrNMXW"
 
 
-# ============================================================================
+# -------------------------------------------------------------------------------
 # Database Fixtures
-# ============================================================================
+# -------------------------------------------------------------------------------
+# Detect test mode.  When TEST_DATABASE_URL is set we use PostgreSQL so that
+# integration tests exercise real DB behaviour (types, constraints, etc.).
+_TEST_DB_URL = os.getenv("TEST_DATABASE_URL", "").strip()
+_USE_POSTGRES = bool(_TEST_DB_URL)
+
 
 @pytest.fixture(scope="function")
 def db_engine():
-    """Create an in-memory SQLite database engine for testing."""
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    """
+    Create a test database engine.
+
+    • PostgreSQL  – when TEST_DATABASE_URL is set in the environment.
+    • SQLite in-memory – the default (existing behaviour kept for speed / CI).
+    """
+    if _USE_POSTGRES:
+        engine = create_engine(
+            _TEST_DB_URL,
+            pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=10,
+        )
+    else:
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+
     Base.metadata.create_all(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)
+    engine.dispose()
 
 
 @pytest.fixture(scope="function")
 def db_session(db_engine) -> Session:
-    """Create a new database session for each test."""
+    """Create a new database session for each test (works with SQLite or PostgreSQL)."""
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
     session = SessionLocal()
 
@@ -370,6 +397,16 @@ def sample_sla_policy(db_session) -> SLAPolicy:
         is_active=True
     )
     db_session.add(sla)
+
+    # Also create Medium severity SLA for tests that need both
+    medium_sla = SLAPolicy(
+        id_policy=uuid4(),
+        policy_name="Medium Priority SLA",
+        severity="Medium",
+        max_resolution_days=3,
+        is_active=True
+    )
+    db_session.add(medium_sla)
     db_session.commit()
     return sla
 
@@ -717,4 +754,58 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers", "appointment: mark test as appointment test"
+    )
+    config.addinivalue_line(
+        "markers", "e2e: mark test as end-to-end user journey test"
+    )
+    config.addinivalue_line(
+        "markers", "admin: mark test as admin operation test"
+    )
+    config.addinivalue_line(
+        "markers", "api: mark test as API endpoint test"
+    )
+    config.addinivalue_line(
+        "markers", "sla: mark test as SLA/escalation test"
+    )
+    config.addinivalue_line(
+        "markers", "evaluate: mark test as evaluation/CSAT test"
+    )
+    config.addinivalue_line(
+        "markers", "notification: mark test as notification service test"
+    )
+    config.addinivalue_line(
+        "markers", "escalation: mark test as escalation service test"
+    )
+    config.addinivalue_line(
+        "markers", "loadbalancer: mark test as load balancer test"
+    )
+    config.addinivalue_line(
+        "markers", "email: mark test as email service test"
+    )
+    config.addinivalue_line(
+        "markers", "otp: mark test as OTP service test"
+    )
+    config.addinivalue_line(
+        "markers", "redis: mark test as Redis service test"
+    )
+    config.addinivalue_line(
+        "markers", "department: mark test as department management test"
+    )
+    config.addinivalue_line(
+        "markers", "employee: mark test as employee management test"
+    )
+    config.addinivalue_line(
+        "markers", "customer: mark test as customer management test"
+    )
+    config.addinivalue_line(
+        "markers", "file: mark test as file handling test"
+    )
+    config.addinivalue_line(
+        "markers", "tag: mark test as tag management test"
+    )
+    config.addinivalue_line(
+        "markers", "sentiment: mark test as sentiment analysis test"
+    )
+    config.addinivalue_line(
+        "markers", "groq: mark test as Groq AI service test"
     )
