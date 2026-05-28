@@ -8,6 +8,8 @@ from uuid import uuid4
 from app.services.ticketHistoryService import TicketHistoryService
 from app.models.ticketHistory import TicketHistory, TicketAction
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestLogTicketCreated:
     def test_log_ticket_created_creates_history_record(

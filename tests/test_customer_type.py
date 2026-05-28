@@ -12,6 +12,8 @@ from uuid import uuid4
 from app.services.customerTypeService import CustomerTypeService
 from app.schemas.customerTypeSchema import CustomerTypeCreate, CustomerTypeUpdate
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestCustomerTypeServiceCreate:
     """Test customer type creation."""

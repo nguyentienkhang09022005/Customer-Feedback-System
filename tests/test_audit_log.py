@@ -18,6 +18,8 @@ from app.services.auditLogService import AuditLogService
 from app.schemas.auditLogSchema import AuditLogCreate
 from app.models.system import AuditLog
 
+pytestmark = [pytest.mark.unit]
+
 
 # ============================================================================
 # Audit Log Creation Tests

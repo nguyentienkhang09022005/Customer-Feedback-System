@@ -9,6 +9,8 @@ from uuid import uuid4
 from app.services.ticketCategoryService import TicketCategoryService
 from app.schemas.ticketCategorySchema import TicketCategoryCreate, TicketCategoryUpdate
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestCreateCategory:
     """Tests for creating ticket categories."""

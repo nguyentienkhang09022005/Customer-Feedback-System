@@ -35,11 +35,8 @@ class SLAPolicy(Base):
 class TicketTemplate(Base):
     __tablename__ = "ticket_templates"
 
-    # id_template is the sole primary key; version tracks revision history.
-    # The UniqueConstraint below enforces one active version per template family,
-    # required by PostgreSQL when Ticket.template_version references this table.
     id_template = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    version = Column(Integer, nullable=False, default=1)
+    version = Column(Integer, primary_key=True, default=1)
     name = Column(String(100), nullable=False)
     description = Column(Text)
     fields_config = Column(JSON, nullable=False)
@@ -53,13 +50,7 @@ class TicketTemplate(Base):
     id_category = Column(UUID(as_uuid=True), ForeignKey("tickets_category.id_category", ondelete="SET NULL"), nullable=True)
 
     category = relationship("TicketCategory", back_populates="templates")
-    # viewonly: template_version is not a DB-level FK, so this is ORM-informational only
-    tickets = relationship("Ticket", back_populates="template", viewonly=True)
-
-    __table_args__ = (
-        # Unique (id_template, version): FK target for Ticket.template_version
-        UniqueConstraint(id_template, version, name="uq_ticket_template_id_version"),
-    )
+    tickets = relationship("Ticket", back_populates="template")
 
 
 class Ticket(Base):
@@ -97,8 +88,8 @@ class Ticket(Base):
 
     comments = relationship("TicketComment", back_populates="ticket", cascade="all, delete-orphan")
     history = relationship("TicketHistory", back_populates="ticket", cascade="all, delete-orphan")
-    # viewonly + single FK: only id_template is a DB-level FK
-    template = relationship("TicketTemplate", foreign_keys=[id_template], viewonly=True)
+    # viewonly: template_version is not a DB-level FK, so this is ORM-informational only
+    template = relationship("TicketTemplate", foreign_keys=[id_template, template_version], viewonly=True)
     appointments = relationship("Appointment", back_populates="ticket", cascade="all, delete-orphan")
     tags = relationship("Tag", secondary="ticket_tags", back_populates="tickets")
 

@@ -18,6 +18,8 @@ from app.services.ticketCommentService import TicketCommentService
 from app.schemas.ticketCommentSchema import CommentCreate, CommentUpdate
 from app.models.ticketComment import TicketComment
 
+pytestmark = [pytest.mark.unit]
+
 
 # ============================================================================
 # Comment Creation Tests

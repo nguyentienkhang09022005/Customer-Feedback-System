@@ -64,6 +64,49 @@ SAMPLE_PASSWORD_HASH = "$2b$12$3pX9sevRZHfI0Vkg8gVzBOX8pUoIx811eVHSnR7jRi3QnZhsr
 
 
 # -------------------------------------------------------------------------------
+# Test Client Fixture
+# -------------------------------------------------------------------------------
+
+@pytest.fixture(scope="function")
+def test_client(db_session):
+    """Create a test client with database session override."""
+    from fastapi.testclient import TestClient
+    from main import app
+    from app.api.dependencies import get_db
+
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(app) as client:
+        yield client
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def admin_token(sample_employee):
+    """Create access token for admin user."""
+    return create_test_jwt_token(sample_employee, "access")
+
+
+@pytest.fixture
+def customer_token(sample_customer):
+    """Create access token for customer user."""
+    return create_test_jwt_token(sample_customer, "access")
+
+
+@pytest.fixture
+def employee_token(sample_employee):
+    """Create access token for employee user."""
+    return create_test_jwt_token(sample_employee, "access")
+
+
+# -------------------------------------------------------------------------------
 # Database Fixtures
 # -------------------------------------------------------------------------------
 # Detect test mode.  When TEST_DATABASE_URL is set we use PostgreSQL so that
@@ -620,6 +663,32 @@ def sample_evaluate(
     return evaluate
 
 
+@pytest.fixture
+def sample_attachment(
+    db_session,
+    sample_ticket,
+    sample_customer
+):
+    """Create a sample attachment for testing."""
+    from app.models.interaction import Attachment
+    attachment = Attachment(
+        id_attachment=uuid4(),
+        attach_name="test_document.pdf",
+        attach_type="application/pdf",
+        url="https://res.cloudinary.com/example/test_document.pdf",
+        thumbnail_url="https://res.cloudinary.com/example/test_document_thumb.jpg",
+        file_size=102400,
+        reference_type="ticket",
+        id_reference=sample_ticket.id_ticket,
+        id_uploader=sample_customer.id,
+        attach_extension=".pdf",
+        public_id="test/test_document"
+    )
+    db_session.add(attachment)
+    db_session.commit()
+    return attachment
+
+
 # ============================================================================
 # Chat Session Fixtures
 # ============================================================================
@@ -683,6 +752,34 @@ def mock_notification_service():
         mock_instance = mock_class.return_value
         mock_instance.create_and_send = MagicMock()
         yield mock_instance
+
+
+# ============================================================================
+# Redis Fixtures
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def redis_client():
+    """
+    Redis client for tests. Uses fakeredis if REDIS_URL not set.
+
+    When REDIS_URL env var is set, connects to real Redis.
+    Otherwise uses fakeredis for unit/integration tests.
+    """
+    if os.environ.get("REDIS_URL"):
+        import redis
+        client = redis.from_url(os.environ["REDIS_URL"])
+        yield client
+        try:
+            client.flushdb()
+        except Exception:
+            pass
+        client.close()
+    else:
+        # Use fakeredis for unit tests
+        import fakeredis
+        fake_redis = fakeredis.FakeRedis(decode_responses=True)
+        yield fake_redis
 
 
 # ============================================================================
