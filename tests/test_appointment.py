@@ -295,7 +295,7 @@ class TestAppointmentCreation:
         with pytest.raises(Exception) as exc_info:
             service.create_appointment(data, sample_customer.id_customer)
 
-        assert "đã có lịch hẹn" in str(exc_info.value) and "chờ" in str(exc_info.value)
+        assert "đã có lịch hẹn" in str(exc_info.value.detail) and "chờ" in str(exc_info.value.detail)
 
 
 # ============================================================================
@@ -601,7 +601,7 @@ class TestAppointmentCancellation:
                 sample_customer.id_customer
             )
 
-        assert "không thể hủy" in str(exc_info.value.detail)
+        assert "Không thể hủy" in str(exc_info.value.detail)
 
     def test_cancel_completed_appointment_fails(
         self,
@@ -632,7 +632,7 @@ class TestAppointmentCancellation:
                 sample_customer.id_customer
             )
 
-        assert "không thể hủy" in str(exc_info.value.detail)
+        assert "không thể hủy" in str(exc_info.value.detail).lower()
 
 
 # ============================================================================
