@@ -31,6 +31,8 @@ from app.models.human import Employee, Human
 from app.core.constants import HumanStatusEnum
 from app.repositories.employeeRepository import EmployeeRepository
 
+pytestmark = [pytest.mark.unit]
+
 
 def create_employee(
     db_session,

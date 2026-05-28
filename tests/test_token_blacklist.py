@@ -12,6 +12,8 @@ Coverage areas:
 import pytest
 from unittest.mock import patch
 
+pytestmark = [pytest.mark.unit]
+
 
 # ============================================================================
 # Happy Path Tests

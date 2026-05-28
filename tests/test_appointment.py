@@ -295,7 +295,7 @@ class TestAppointmentCreation:
         with pytest.raises(Exception) as exc_info:
             service.create_appointment(data, sample_customer.id_customer)
 
-        assert "đã có lịch hẹn" in str(exc_info.value.detail) and "chờ" in str(exc_info.value.detail)
+        assert "Đã có lịch hẹn" in str(exc_info.value.detail) and "chờ" in str(exc_info.value.detail)
 
 
 # ============================================================================

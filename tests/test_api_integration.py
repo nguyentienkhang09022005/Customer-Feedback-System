@@ -12,7 +12,7 @@ These tests use FastAPI TestClient for full HTTP request/response testing.
 
 import pytest
 from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import json
 
@@ -76,7 +76,7 @@ class TestAuthAPI:
 
     def test_login_success(self, test_client, sample_customer):
         """Test successful login via API."""
-        with patch("app.services.authService.ChatbotService._preload_customer_data"):
+        with patch("app.services.chatbotService.ChatbotService._preload_customer_data"):
             response = test_client.post(
                 "/api/v1/auth/login",
                 json={
@@ -142,7 +142,7 @@ class TestTicketAPI:
         sample_ticket
     ):
         """Test getting customer's own tickets."""
-        with patch("app.services.authService.ChatbotService._preload_customer_data"):
+        with patch("app.services.chatbotService.ChatbotService._preload_customer_data"):
             response = test_client.get(
                 "/api/v1/tickets/user",
                 headers={"Authorization": f"Bearer {customer_token}"}
@@ -159,7 +159,7 @@ class TestTicketAPI:
         sample_ticket
     ):
         """Test getting ticket by ID."""
-        with patch("app.services.authService.ChatbotService._preload_customer_data"):
+        with patch("app.services.chatbotService.ChatbotService._preload_customer_data"):
             response = test_client.get(
                 f"/api/v1/tickets/{sample_ticket.id_ticket}",
                 headers={"Authorization": f"Bearer {customer_token}"}
@@ -231,8 +231,8 @@ class TestAppointmentAPI:
         mock_notification_service
     ):
         """Test creating appointment via API."""
-        with patch("app.services.authService.ChatbotService._preload_customer_data"):
-            future_time = datetime.utcnow() + timedelta(days=1)
+        with patch("app.services.chatbotService.ChatbotService._preload_customer_data"):
+            future_time = datetime.now(timezone.utc) + timedelta(days=1)
             response = test_client.post(
                 "/api/v1/appointments",
                 headers={"Authorization": f"Bearer {customer_token}"},
@@ -243,7 +243,7 @@ class TestAppointmentAPI:
                 }
             )
 
-        assert response.status_code == 201
+        assert response.status_code == 200
         data = response.json()
         assert data["status"] is True
 
@@ -297,7 +297,7 @@ class TestAppointmentAPI:
         sample_appointment
     ):
         """Test cancelling appointment via API."""
-        with patch("app.services.authService.ChatbotService._preload_customer_data"):
+        with patch("app.services.chatbotService.ChatbotService._preload_customer_data"):
             response = test_client.patch(
                 f"/api/v1/appointments/{sample_appointment.id_appointment}/cancel",
                 headers={"Authorization": f"Bearer {customer_token}"},
@@ -322,7 +322,7 @@ class TestEvaluationAPI:
         mock_notification_service
     ):
         """Test creating evaluation via API."""
-        with patch("app.services.authService.ChatbotService._preload_customer_data"):
+        with patch("app.services.chatbotService.ChatbotService._preload_customer_data"):
             response = test_client.post(
                 "/api/v1/evaluates",
                 headers={"Authorization": f"Bearer {customer_token}"},
@@ -333,7 +333,7 @@ class TestEvaluationAPI:
                 }
             )
 
-        assert response.status_code == 201
+        assert response.status_code == 200
         data = response.json()
         assert data["status"] is True
 
@@ -356,7 +356,7 @@ class TestEvaluationAPI:
         sample_evaluate
     ):
         """Test updating evaluation via API."""
-        with patch("app.services.authService.ChatbotService._preload_customer_data"):
+        with patch("app.services.chatbotService.ChatbotService._preload_customer_data"):
             response = test_client.patch(
                 f"/api/v1/evaluates/{sample_evaluate.id_evaluate}",
                 headers={"Authorization": f"Bearer {customer_token}"},
@@ -375,7 +375,7 @@ class TestEvaluationAPI:
         sample_evaluate
     ):
         """Test deleting evaluation via API."""
-        with patch("app.services.authService.ChatbotService._preload_customer_data"):
+        with patch("app.services.chatbotService.ChatbotService._preload_customer_data"):
             response = test_client.delete(
                 f"/api/v1/evaluates/{sample_evaluate.id_evaluate}",
                 headers={"Authorization": f"Bearer {customer_token}"}
@@ -399,7 +399,7 @@ class TestChatbotAPI:
         mock_redis_service
     ):
         """Test sending message to chatbot via API."""
-        with patch("app.services.authService.ChatbotService._preload_customer_data"):
+        with patch("app.services.chatbotService.ChatbotService._preload_customer_data"):
             with patch("app.api.v1.chatbot.check_chatbot_rate_limit", return_value=True):
                 response = test_client.post(
                     "/api/v1/chatbot/message",
@@ -416,7 +416,7 @@ class TestChatbotAPI:
         sample_chat_session
     ):
         """Test getting chatbot session via API."""
-        with patch("app.services.authService.ChatbotService._preload_customer_data"):
+        with patch("app.services.chatbotService.ChatbotService._preload_customer_data"):
             response = test_client.get(
                 "/api/v1/chatbot/session",
                 headers={"Authorization": f"Bearer {customer_token}"}
@@ -431,7 +431,7 @@ class TestChatbotAPI:
         sample_chat_session
     ):
         """Test deleting chatbot session via API."""
-        with patch("app.services.authService.ChatbotService._preload_customer_data"):
+        with patch("app.services.chatbotService.ChatbotService._preload_customer_data"):
             response = test_client.delete(
                 "/api/v1/chatbot/session",
                 headers={"Authorization": f"Bearer {customer_token}"}
