@@ -49,7 +49,7 @@ class EmployeeRepository:
     def get_available_employees_by_department(self, dept_id: uuid.UUID) -> List[Employee]:
         return self.db.query(Employee).filter(
             Employee.id_department == dept_id,
-            Employee.status == "Active"
+            Human.status == "Active"
         ).order_by(Employee.csat_score.desc()).all()
 
     def get_available_employees_with_ticket_counts(self, dept_id: uuid.UUID):
@@ -65,11 +65,13 @@ class EmployeeRepository:
             )
         ).filter(
             Employee.id_department == dept_id,
-            Employee.status == "Active"
-        ).group_by(Employee.id_employee).order_by(
+            Human.status == "Active"
+        ).group_by(Human.id, Employee.id_employee, Employee.id_department, Employee.employee_code,
+ Employee.job_title, Employee.max_ticket_capacity, Employee.csat_score,
+                   Employee.hire_date, Employee.role_name).order_by(
             Employee.csat_score.desc()
         ).all()
-        
+
         return results
 
     def get_best_employee_for_assignment(self, dept_id: uuid.UUID) -> Optional[Employee]:
