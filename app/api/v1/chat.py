@@ -58,14 +58,14 @@ def send_message(
     [HIDDEN] Vui lòng sử dụng Socket.IO 'send_message' event để gửi tin nhắn.
     API này đã bị ẩn khỏi tài liệu Swagger.
     """
-    # Check if ticket is closed
-    from app.services.ticketService import TicketService
-    ticket_service = TicketService(db)
-    ticket = ticket_service.get_ticket(ticket_id)
-    if ticket and ticket.status == "Closed":
-        raise HTTPException(status_code=400, detail="Ticket is closed. Cannot send messages.")
-    
     try:
+        # Check if ticket is closed
+        from app.services.ticketService import TicketService
+        ticket_service = TicketService(db)
+        ticket = ticket_service.get_ticket_by_id(ticket_id)
+        if ticket and ticket.status == "Closed":
+            raise HTTPException(status_code=400, detail="Ticket is closed. Cannot send messages.")
+
         service = ChatService(db)
         message = service.send_message(ticket_id, current_user.id, data.content, data.message_type)
         return APIResponse(
