@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 from app.api.v1 import roles, customerTypes, employees, customers, auth, user, ticketCategories, tickets, departments, \
     faq, chat, audit, sla, evaluate, notification, cloudinary_signatures, department_assignments, ticketComments, ticketHistory, \
-    templates, chatbot, analytics, department_analytics, constants, appointments
+    templates, chatbot, analytics, department_analytics, constants, appointments, attachments
 from app.api.v1.admin import tags, tickets as admin_tickets, users, settings, reports, escalation
 from app.socketio.manager import sio
 from app.core.scheduler import init_scheduler, shutdown_scheduler
@@ -56,6 +56,7 @@ app.include_router(analytics.router, prefix="/api/v1")
 app.include_router(department_analytics.router, prefix="/api/v1")
 app.include_router(constants.router, prefix="/api/v1")
 app.include_router(appointments.router, prefix="/api/v1")
+app.include_router(attachments.router, prefix="/api/v1")
 app.include_router(tags.router, prefix="/api/v1")
 app.include_router(admin_tickets.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")

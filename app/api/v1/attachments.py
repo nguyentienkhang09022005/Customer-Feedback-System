@@ -15,6 +15,7 @@ from app.schemas.attachmentSchema import (
 )
 from app.services.attachmentService import AttachmentService
 from app.services.fileService import FileValidationError
+from app.core.response import APIResponse
 
 router = APIRouter(prefix="/attachments", tags=["Attachments"])
 
@@ -134,7 +135,7 @@ async def get_attachment(
     return attachment
 
 
-@router.get("/reference/{reference_type}/{reference_id}", response_model=AttachmentListResponse)
+@router.get("/reference/{reference_type}/{reference_id}")
 async def list_attachments(
     reference_type: str,
     reference_id: UUID,
@@ -145,10 +146,15 @@ async def list_attachments(
     """
     service = AttachmentService(db)
     attachments = service.get_attachments_for_reference(reference_type, reference_id)
-    
-    return AttachmentListResponse(
-        attachments=attachments,
-        total=len(attachments)
+
+    return APIResponse(
+        status=True,
+        code=200,
+        message="Lấy danh sách tệp đính kèm thành công!",
+        data=AttachmentListResponse(
+            attachments=attachments,
+            total=len(attachments)
+        )
     )
 
 
