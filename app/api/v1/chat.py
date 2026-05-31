@@ -132,34 +132,67 @@ def get_conversations(
         ticket_ids = [t.id_ticket for t in tickets]
         customer_ids = list(set([t.id_customer for t in tickets if t.id_customer]))
         employee_ids = list(set([t.id_employee for t in tickets if t.id_employee]))
-        
+
         # Bulk query customers
         customers = {c.id: c for c in db.query(Customer).filter(Customer.id.in_(customer_ids)).all()} if customer_ids else {}
         # Bulk query employees
         employees = {e.id: e for e in db.query(Employee).filter(Employee.id.in_(employee_ids)).all()} if employee_ids else {}
-        
-        # Bulk query last messages (one query per page instead of N queries)
+
+        # Bulk query last messages - single query with window function instead of N queries
         from app.models.interaction import Message
-        last_messages_map = {}
-        for tid in ticket_ids:
-            last_msg = db.query(Message).filter(
-                Message.id_ticket == tid,
+        from sqlalchemy import func, and_
+
+        # Subquery to get last message per ticket using window function
+        last_msg_subquery = db.query(
+            Message.id_ticket,
+            func.max(Message.created_at).label('last_created_at')
+        ).filter(
+            and_(
+                Message.id_ticket.in_(ticket_ids),
                 Message.is_deleted == False
-            ).order_by(Message.created_at.desc()).first()
-            last_messages_map[tid] = last_msg
-        
+            )
+        ).group_by(Message.id_ticket).subquery()
+
+        # Join to get full last message records
+        last_messages = db.query(Message).join(
+            last_msg_subquery,
+            and_(
+                Message.id_ticket == last_msg_subquery.c.id_ticket,
+                Message.created_at == last_msg_subquery.c.last_created_at,
+                Message.is_deleted == False
+            )
+        ).all()
+
+        last_messages_map = {msg.id_ticket: msg for msg in last_messages}
+
+        # Bulk query unread counts - single query instead of N queries
+        unread_counts_map = {}
+        if ticket_ids:
+            unread_query = db.query(
+                Message.id_ticket,
+                func.count(Message.id_message).label('unread_count')
+            ).filter(
+                and_(
+                    Message.id_ticket.in_(ticket_ids),
+                    Message.is_read == False,
+                    Message.id_sender != current_user.id,
+                    Message.is_deleted == False
+                )
+            ).group_by(Message.id_ticket).all()
+            unread_counts_map = {uid: count for uid, count in unread_query}
+
         conversations = []
         for ticket in tickets:
             last_message = None
             last_msg = last_messages_map.get(ticket.id_ticket)
             if last_msg:
                 last_message = service._to_message_out(last_msg)
-            
-            unread_count = service.get_unread_count(ticket.id_ticket, current_user.id)
-            
+
+            unread_count = unread_counts_map.get(ticket.id_ticket, 0)
+
             customer = customers.get(ticket.id_customer)
             employee = employees.get(ticket.id_employee) if ticket.id_employee else None
-            
+
             conv = ConversationOut(
                 id_ticket=ticket.id_ticket,
                 ticket_title=ticket.title,

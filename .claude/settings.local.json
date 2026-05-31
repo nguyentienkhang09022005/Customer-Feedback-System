@@ -33,7 +33,16 @@
       "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_customer.py tests/test_employee.py tests/test_faq.py tests/test_department_assignment.py tests/test_ticket_template.py --tb=no -q)",
       "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_customer.py -x --tb=short)",
       "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_ticket_category.py --tb=no -q)",
-      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_ticket_category.py::TestCategoryUpdate::test_update_category_name_only --tb=short)"
+      "Bash(PYTHONPATH=/d/Project_Python/Customer-Feedback-System pytest tests/test_ticket_category.py::TestCategoryUpdate::test_update_category_name_only --tb=short)",
+      "Bash(grep -v \"^$\")",
+      "Bash(python -c ' *)",
+      "Bash(python create_templates.py)",
+      "Bash(python create_sla.py)",
+      "Bash(python create_tags.py)",
+      "Bash(python create_ticket_tags.py)",
+      "Bash(python create_tickets.py)",
+      "Bash(timeout 10 python -c ' *)",
+      "Bash(curl *)"
     ]
   }
 }

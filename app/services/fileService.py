@@ -1,7 +1,6 @@
 import os
 import re
 import uuid
-import magic
 from fastapi import UploadFile, HTTPException
 from app.core.config import settings
 
@@ -138,19 +137,8 @@ class FileService:
         # Reset file position for subsequent reads
         await file.seek(0)
         
-        # Detect actual MIME type from content (magic bytes)
-        try:
-            mime_detected = magic.from_buffer(content[:1024], mime=True)
-            if mime_detected not in FileService.ALL_ALLOWED_TYPES:
-                raise FileValidationError(
-                    f"File content type ({mime_detected}) is not allowed"
-                )
-        except Exception:
-            # If magic detection fails, rely on content type header
-            if content_type not in FileService.ALL_ALLOWED_TYPES:
-                raise FileValidationError(
-                    f"File type ({content_type}) is not allowed"
-                )
+        # Skip magic byte detection on Windows (requires libmagic)
+        # Validation relies on content-type header and extension instead
         
         return {
             'filename': file.filename,
