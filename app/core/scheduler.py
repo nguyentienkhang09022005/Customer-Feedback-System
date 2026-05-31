@@ -14,28 +14,36 @@ SENTIMENT_JOB_INTERVAL_DAYS = 7
 
 def survey_job_wrapper():
     """Wrapper to create DB session for APScheduler job"""
-    logger.info("[SurveyJob] Starting survey check...")
+    logger.info("="*50)
+    logger.info("[SurveyJob] 🚀 STARTED")
+    logger.info("="*50)
     db = SessionLocal()
     try:
         result = run_survey_job(db)
-        logger.info(f"[SurveyJob] Completed: {result}")
+        logger.info(f"[SurveyJob] ✅ COMPLETED: {result}")
     except Exception as e:
-        logger.error(f"[SurveyJob] Error: {e}", exc_info=True)
+        logger.error(f"[SurveyJob] ❌ ERROR: {e}", exc_info=True)
     finally:
         db.close()
+    logger.info("[SurveyJob] 🔚 FINISHED")
+    logger.info("="*50)
 
 
 def sentiment_job_wrapper():
     """Wrapper to create DB session for Sentiment Analysis job"""
-    logger.info("[SentimentJob] Starting sentiment analysis...")
+    logger.info("="*50)
+    logger.info("[SentimentJob] 🚀 STARTED")
+    logger.info("="*50)
     db = SessionLocal()
     try:
         result = run_sentiment_analysis(db)
-        logger.info(f"[SentimentJob] Completed: {result}")
+        logger.info(f"[SentimentJob] ✅ COMPLETED: {result}")
     except Exception as e:
-        logger.error(f"[SentimentJob] Error: {e}", exc_info=True)
+        logger.error(f"[SentimentJob] ❌ ERROR: {e}", exc_info=True)
     finally:
         db.close()
+    logger.info("[SentimentJob] 🔚 FINISHED")
+    logger.info("="*50)
 
 
 def init_scheduler():
